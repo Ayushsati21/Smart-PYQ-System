@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.exe
+*.log
+input_pdfs/**
+!input_pdfs/.gitkeep
+output_text/**
+!output_text/.gitkeep
