@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <vector>
 using namespace std;
 
 class QuestionPaper {
@@ -20,18 +21,37 @@ public:
         academicYear = academic;
         term = t;
     }
+    void display() const {
+        cout << "\nPaper ID: " << paperId;
+        cout << "\nFile Name: " << fileName;
+        cout << "\nSubject: " << subject;
+        cout << "\nAcademic Year: " << academicYear;
+        cout << "\nExam Year: " << examYear;
+        cout << "\nTerm: " << term << endl;
+        cout << "-----------------------------\n";
+    }
 };
 
 int main() {
-    QuestionPaper p(101, 2025, "DSA.pdf",
-                    "Data Structures", "2024-2025", "End Term");
+    vector<QuestionPaper> papers;
 
-    cout << "Paper ID: " << p.paperId << endl;
-    cout << "Subject: " << p.subject << endl;
-    cout << "Exam Year: " << p.examYear << endl;
-    cout << "File Name: " << p.fileName << endl;
-    cout << "Academic Year: " << p.academicYear << endl;
-    cout << "Term: " << p.term << endl;
+    QuestionPaper p1(101, 2025, "DSA.pdf",
+                     "Data Structures", "2024-2025", "End Term");
+
+    QuestionPaper p2(102, 2025, "DBMS.pdf",
+                     "DBMS", "2024-2025", "Mid Term");
+
+    QuestionPaper p3(103, 2024, "OOP.pdf",
+                     "OOP", "2023-2024", "End Term");
+    papers.push_back(p1);
+    papers.push_back(p2);
+    papers.push_back(p3);
+    cout << "===== QUESTION PAPER MANAGEMENT =====\n";
+
+    for (const QuestionPaper& p : papers) {
+        p.display();
+    }
+    cout << "\nTotal Question Papers: " << papers.size() << endl;
 
     return 0;
 }
