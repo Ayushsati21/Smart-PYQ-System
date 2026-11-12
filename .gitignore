@@ -1,0 +1,38 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Database backups and local databases
+backups/
+*.db
+*.sqlite
+*.sqlite3
+
+# Local question papers and OCR output
+/input_pdfs/
+/output_text/
+/*.pdf
+
+# Generated files
+*.exe
+*.log
+output.txt
+ocr_error.txt
+page_*.png
+tempCodeRunnerFile.*
+
+# IDE and OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
