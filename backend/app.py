@@ -122,7 +122,7 @@ def add_development_cors(response):
     response.headers["Access-Control-Allow-Origin"] = allowed_origin
     response.headers["Vary"] = "Origin"
     response.headers["Access-Control-Allow-Headers"] = "Content-Type, X-CSRF-Token"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Methods"] = "GET, HEAD, POST, PATCH, DELETE, OPTIONS"
     response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
