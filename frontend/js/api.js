@@ -1,11 +1,12 @@
 /* Frontend integration boundary. UI code calls this service, never MySQL directly. */
 const localApiBaseUrl = 'http://localhost:5000/api';
+const productionApiBaseUrl = 'https://smart-pyq-system.onrender.com/api';
 const configuredApiBaseUrl = window.PYQ_API_BASE_URL || window.API_CONFIG?.baseUrl;
 const isLocalHost = ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
 
 window.API_CONFIG = {
   ...window.API_CONFIG,
-  baseUrl: configuredApiBaseUrl || (isLocalHost ? localApiBaseUrl : '/api'),
+  baseUrl: configuredApiBaseUrl || (isLocalHost ? localApiBaseUrl : productionApiBaseUrl),
   useMockData: window.API_CONFIG?.useMockData ?? false
 };
 
