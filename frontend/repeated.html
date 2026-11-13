@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Repeated Questions | Smart PYQ System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="repeated">
+  <div id="app-shell"></div>
+  <main class="main-content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">EXAM INTELLIGENCE</p>
+        <h1>Repeated Questions</h1>
+        <p class="muted">Identify questions that recur across previous-year papers so you can prioritize high-value revision topics.</p>
+      </div>
+      <span class="badge soft">Live analysis</span>
+    </div>
+    <div class="stats-grid repeated-summary-grid">
+      <div class="stat-card"><span class="icon-box violet">↻</span><div><p>Total unique repeated questions</p><strong id="repeated-total">—</strong><small>Matching across papers</small></div></div>
+      <div class="stat-card"><span class="icon-box orange">↗</span><div><p>Highest frequency</p><strong id="repeated-highest">—</strong><small>Occurrences across papers</small></div></div>
+    </div>
+    <section class="card filter-card">
+      <div class="section-heading"><div><h2>Filter analysis</h2><p class="muted" id="repeated-status">Loading repeated questions from the Flask API...</p></div></div>
+      <div class="filter-row">
+        <select id="repeated-subject-filter"><option value="">All subjects</option></select>
+        <select id="repeated-exam-year-filter"><option value="">All examination years</option></select>
+        <select id="repeated-min-frequency"><option value="2">At least 2 appearances</option><option value="3">At least 3 appearances</option><option value="4">At least 4 appearances</option><option value="5">At least 5 appearances</option></select>
+        <select class="compact-select" id="sort-repeated" aria-label="Sort repeated questions"><option value="desc">Highest frequency</option><option value="asc">Lowest frequency</option></select>
+        <button class="button ghost" id="clear-repeated-filters">Clear filters</button>
+      </div>
+    </section>
+    <div class="content-grid two-thirds">
+      <section class="card chart-card"><div class="section-heading"><div><h2>Frequency distribution</h2><p class="muted">Top repeated questions by number of papers</p></div></div><div class="horizontal-chart" id="frequency-chart"></div><div class="state empty-state hidden" id="frequency-empty"><span class="state-icon">↗</span><h3>No frequency data</h3><p>Adjust the filters to see the analysis.</p></div></section>
+      <section class="card highlight-card"><span class="icon-box orange">↗</span><p class="eyebrow">TOP SIGNAL</p><strong id="top-question">No matching question</strong><div class="big-number" id="top-frequency">—</div><span class="muted">appearances across papers</span></section>
+    </div>
+    <section class="card table-card">
+      <div class="section-heading"><div><h2>Matched question pairs <span class="count-pill" id="repeated-count"></span></h2><p class="muted">Exact hash matches and TF-IDF cosine matches across distinct papers.</p></div></div>
+      <div class="notice analysis-note">Exact normalized matches and high-confidence semantic matches are shown with their similarity percentage and source-paper context.</div>
+      <div class="table-wrap"><table><thead><tr><th>Rank</th><th>Question text</th><th>Subject</th><th>Frequency</th><th>Distinct papers</th><th>Examination years</th><th>Paper filenames</th></tr></thead><tbody id="repeated-table"></tbody></table></div>
+      <div class="state empty-state hidden" id="repeated-empty"><span class="state-icon">⌕</span><h3>No repeated questions found</h3><p>No questions match the selected subject, academic year, and examination year.</p></div>
+    </section>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="js/mock-data.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
+</body>
+<script>document.querySelector('#repeated-status-badge')?.replaceChildren('Live database records');</script>
+</html>

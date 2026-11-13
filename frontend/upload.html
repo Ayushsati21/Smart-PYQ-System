@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Upload Paper | Smart PYQ System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="upload">
+  <div id="app-shell"></div>
+  <main class="main-content">
+    <div class="page-heading">
+      <div>
+        <p class="eyebrow">CONTENT INGESTION</p>
+        <h1>Upload a paper</h1>
+        <p class="muted">Add a PDF to the processing queue with the right academic context.</p>
+      </div>
+    </div>
+    <div class="content-grid form-layout">
+      <section class="card">
+        <div class="section-heading">
+          <div>
+            <h2>Paper information</h2>
+            <p class="muted">These fields will be sent to the Flask processing endpoint.</p>
+          </div>
+        </div>
+        <form id="upload-form">
+          <div class="form-grid">
+            <label>Subject<select name="subject" required><option value="">Choose subject</option><option>Data Structures</option><option>OOP in C++</option><option>DBMS</option><option>Computer Networks</option></select></label>
+            <label>Academic year<select name="academic_year" required><option value="">Choose year</option><option>First Year</option><option>Second Year</option><option>Third Year</option><option>Fourth Year</option></select></label>
+            <label>Semester<select name="semester" required><option value="">Choose semester</option><option>Semester 1</option><option>Semester 2</option><option>Semester 3</option><option>Semester 4</option></select></label>
+            <label>Examination year<select name="exam_year" required><option value="">Choose year</option><option>2025</option><option>2024</option><option>2023</option><option>2022</option></select></label>
+            <label>Examination type<select name="term" required><option value="">Choose type</option><option>Mid Term</option><option>End Term</option></select></label>
+            <label>Paper code<input name="paper_code" maxlength="50" placeholder="e.g. TCS302" required></label>
+          </div>
+          <div class="dropzone" id="dropzone">
+            <input type="file" id="file-input" name="pdf" accept="application/pdf" hidden>
+            <span class="upload-icon">↑</span>
+            <strong>Drop your PDF here</strong>
+            <span class="muted">or <button type="button" class="inline-button" id="choose-file">browse files</button></span>
+            <small>PDF only · Maximum 25 MB</small>
+            <div class="file-preview hidden" id="file-preview"></div>
+          </div>
+          <div class="form-actions">
+            <a href="index.html" class="button ghost">Cancel</a>
+            <button class="button primary" type="submit">Upload and process paper</button>
+          </div>
+        </form>
+      </section>
+      <aside class="card info-card">
+        <span class="icon-box blue">✦</span>
+        <h2>What happens next?</h2>
+        <ol>
+          <li><strong>OCR processing</strong><span>Each PDF page is rendered and read by the OCR pipeline.</span></li>
+          <li><strong>Question extraction</strong><span>Numbered question blocks are identified and normalized.</span></li>
+          <li><strong>Library indexing</strong><span>Paper metadata and questions become searchable.</span></li>
+        </ol>
+        <div class="notice">Admin-only upload. The Flask API validates the session, stores the PDF, and runs OCR and extraction.</div>
+      </aside>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

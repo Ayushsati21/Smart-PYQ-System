@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: smart-pyq-api
+    runtime: python
+    buildCommand: pip install -r backend/requirements.txt -r pdf_to_text_converter/requirements.txt
+    startCommand: gunicorn --bind 0.0.0.0:$PORT backend.app:app
+    healthCheckPath: /health
+    envVars:
+      - key: FLASK_ENV
+        value: production
+      - key: FLASK_SECRET_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: MYSQL_HOST
+        sync: false
+      - key: MYSQL_PORT
+        sync: false
+      - key: MYSQL_DATABASE
+        sync: false
+      - key: MYSQL_USER
+        sync: false
+      - key: MYSQL_PASSWORD
+        sync: false

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Sign in | Smart PYQ System</title><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet"><link rel="stylesheet" href="css/styles.css"></head>
+<body class="auth-page">
+  <main class="auth-layout"><section class="auth-hero"><div class="brand"><span class="brand-mark">S</span><span>Smart <b>PYQ</b></span></div><div><p class="eyebrow">ACADEMIC INTELLIGENCE</p><h1>Study smarter with every paper.</h1><p>Explore your question-paper archive, discover recurring concepts, and focus your preparation where it matters most.</p></div><span class="auth-hero-note">Public student access · Secure admin access</span></section><section class="auth-panel"><div class="auth-card"><p class="eyebrow">WELCOME</p><h2>Choose how to continue</h2><p class="muted">Students can browse without an account. Administrators must sign in to manage papers.</p><div class="role-grid"><button class="role-card" id="continue-student" type="button"><span class="role-icon violet">◉</span><span><strong>CONTINUE AS STUDENT</strong><small>Explore papers and analysis</small></span><span>→</span></button></div><form id="admin-login-form" class="admin-login-form"><p class="eyebrow">ADMIN ACCESS</p><label>Username<input id="admin-username" name="username" autocomplete="username" required></label><label>Password<input id="admin-password" name="password" type="password" autocomplete="current-password" required></label><button class="button primary" type="submit">Admin Login</button><p class="muted" id="login-error" role="alert"></p></form></div></section></main>
+  <script src="js/api.js"></script><script>
+    document.querySelector('#continue-student').onclick = () => { window.location.href = 'index.html'; };
+    document.querySelector('#admin-login-form').onsubmit = async event => {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const button = form.querySelector('button[type="submit"]');
+      const error = document.querySelector('#login-error');
+      button.disabled = true; error.textContent = '';
+      try {
+        await window.PYQAuth.login(form.username.value.trim(), form.password.value);
+        window.location.href = 'index.html';
+      } catch (exception) {
+        error.textContent = exception.message || 'Administrator login failed.';
+      } finally { button.disabled = false; }
+    };
+  </script>
+</body></html>

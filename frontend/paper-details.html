@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Paper Details | Smart PYQ System</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-page="details">
+  <div id="app-shell"></div>
+  <main class="main-content">
+    <a class="back-link" href="explore.html">← Back to papers</a>
+    <div class="page-heading detail-heading">
+      <div><p class="eyebrow">PAPER DETAILS</p><h1 id="detail-title">Loading paper...</h1><p class="muted" id="detail-subtitle"></p></div>
+      <button class="button primary" id="download-paper">↓ Download PDF</button>
+    </div>
+    <div class="detail-meta" id="detail-meta"></div>
+    <div class="content-grid detail-layout">
+      <section class="card pdf-card">
+        <div class="section-heading"><div><h2>PDF preview</h2><p class="muted">View the original uploaded document.</p></div><span class="badge soft">PDF</span></div>
+        <div class="pdf-preview"><iframe id="pdf-viewer" title="Question paper PDF" loading="lazy" style="width:100%;height:480px;border:0;border-radius:8px;background:#fff"></iframe><div class="state hidden" id="pdf-unavailable"><h3>PDF unavailable</h3><p>We could not load the original PDF for this paper.</p></div></div>
+      </section>
+      <section class="card"><div class="section-heading"><div><h2>Extracted questions</h2><p class="muted" id="detail-question-count"></p></div></div><div class="question-stack" id="detail-questions"></div></section>
+    </div>
+  </main>
+  <div class="toast" id="toast"></div>
+  <script src="js/mock-data.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
+</body>
+</html>

@@ -1,6 +1,9 @@
 ﻿# Python
 __pycache__/
 *.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 .venv/
 venv/
 env/
@@ -11,9 +14,17 @@ env/
 !.env.example
 *.pem
 *.key
+*.crt
+*.cer
+*.p12
+secrets/
+credentials/
 
 # Database backups and local databases
 backups/
+*.bak
+*.dump
+*.sql.bak
 *.db
 *.sqlite
 *.sqlite3
@@ -21,6 +32,11 @@ backups/
 # Local question papers and OCR output
 /input_pdfs/
 /output_text/
+Scaned Papers/*.pdf
+pdf_to_text_converter/input_pdfs/*
+!pdf_to_text_converter/input_pdfs/.gitkeep
+pdf_to_text_converter/output_text/*
+!pdf_to_text_converter/output_text/.gitkeep
 /*.pdf
 
 # Generated files
@@ -30,6 +46,8 @@ output.txt
 ocr_error.txt
 page_*.png
 tempCodeRunnerFile.*
+*.tmp
+.cache/
 
 # IDE and OS
 .vscode/
