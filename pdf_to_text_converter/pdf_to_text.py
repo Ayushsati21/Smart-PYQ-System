@@ -1,4 +1,4 @@
-"""OCR text from every page of a PDF using PyMuPDF and PaddleOCR."""
+"""Extract text from PDFs cheaply, with optional local PaddleOCR for scanned files."""
 
 import argparse
 import json
@@ -6,12 +6,15 @@ import tempfile
 from pathlib import Path
 
 import pymupdf as fitz
-from paddleocr import PaddleOCR
 
 
 MODULE_DIR = Path(__file__).resolve().parent
 DEFAULT_INPUT_DIR = MODULE_DIR / "input_pdfs"
 DEFAULT_OUTPUT_DIR = MODULE_DIR / "output_text"
+
+
+class ScannedPDFError(ValueError):
+    """Raised when a PDF has no usable embedded text layer."""
 
 
 def extract_text(results):
@@ -35,7 +38,9 @@ def extract_text(results):
 
 
 def create_ocr():
-    """Initialize the CPU OCR engine."""
+    """Initialize PaddleOCR on demand; importing this module stays lightweight."""
+    from paddleocr import PaddleOCR
+
     return PaddleOCR(
         text_detection_model_name="PP-OCRv5_mobile_det",
         text_recognition_model_name="PP-OCRv5_mobile_rec",
@@ -51,25 +56,42 @@ def create_ocr():
 
 
 def convert_pdf(pdf_path, output_path, ocr=None):
-    """OCR a PDF and save page-marked UTF-8 text; return (text, page_count)."""
+    """Write page-marked text. Use embedded text by default; OCR only when supplied.
+
+    The hosted Flask API calls this without an OCR engine to stay within its
+    memory limit. For scanned PDFs, run the local batch converter, which passes
+    a PaddleOCR engine explicitly.
+    """
     pdf_path = Path(pdf_path)
     output_path = Path(output_path)
     if not pdf_path.is_file():
         raise FileNotFoundError(f"PDF not found: {pdf_path}")
 
-    engine = ocr if ocr is not None else create_ocr()
     page_texts = []
     with tempfile.TemporaryDirectory(prefix="pyq_ocr_") as temp_dir:
         with fitz.open(pdf_path) as pdf:
             if len(pdf) == 0:
                 raise ValueError(f"PDF contains no pages: {pdf_path}")
             for page_number, page in enumerate(pdf, start=1):
-                image_path = Path(temp_dir) / f"page_{page_number}.png"
-                page.get_pixmap(matrix=fitz.Matrix(3, 3), alpha=False).save(str(image_path))
-                page_text = "\n".join(extract_text(engine.predict(str(image_path))))
+                if ocr is None:
+                    page_text = page.get_text("text", sort=True).strip()
+                else:
+                    image_path = Path(temp_dir) / f"page_{page_number}.png"
+                    page.get_pixmap(matrix=fitz.Matrix(3, 3), alpha=False).save(str(image_path))
+                    page_text = "\n".join(extract_text(ocr.predict(str(image_path))))
                 page_texts.append(f"--- PAGE {page_number} ---\n{page_text}")
 
     text = "\n\n".join(page_texts)
+    if ocr is None:
+        embedded_characters = sum(
+            len(page_text.split("\n", 1)[1].strip()) for page_text in page_texts
+        )
+        if embedded_characters < 20:
+            raise ScannedPDFError(
+                "This PDF appears to be scanned and has no usable embedded text. "
+                "Run the local PaddleOCR converter on this PDF, then upload a text-based/searchable PDF."
+            )
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(text, encoding="utf-8", newline="\n")
     return text, len(page_texts)
@@ -77,10 +99,12 @@ def convert_pdf(pdf_path, output_path, ocr=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("pdf", type=Path, help="PDF file to OCR")
+    parser.add_argument("pdf", type=Path, help="PDF file to OCR or extract")
     parser.add_argument("output", type=Path, help="Destination text file")
+    parser.add_argument("--ocr", action="store_true", help="Use PaddleOCR for scanned PDFs (local use)")
     args = parser.parse_args()
-    text, pages = convert_pdf(args.pdf, args.output)
+    engine = create_ocr() if args.ocr else None
+    text, pages = convert_pdf(args.pdf, args.output, ocr=engine)
     print(f"Processed {pages} page(s); recognized {len(text)} characters.")
     print(f"Output saved to: {args.output}")
 
