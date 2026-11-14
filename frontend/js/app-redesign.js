@@ -90,7 +90,116 @@
     });
     $('#refresh-papers').onclick = async () => { $('#refresh-papers').disabled = true; try { papers = await window.PYQApi.listPapers(); render(); showToast('Paper list refreshed'); } catch (error) { showToast(error.message); } finally { $('#refresh-papers').disabled = false; } }; render(); }
   async function initQuestions() { const status = $('#question-status') || $('.table-card .section-heading .muted'); const table = $('#questions-table'); const empty = $('#questions-empty'); const emptyCopy = $('#questions-empty-copy') || $('#questions-empty p'); let questions; try { questions = await window.PYQApi.listQuestions(); if (status) status.textContent = 'Live extracted questions loaded from the Flask API.'; } catch (error) { if (status) status.textContent = 'Unable to load questions from the API.'; empty.classList.remove('hidden'); if (emptyCopy) emptyCopy.textContent = 'The Flask API could not load the question bank.'; showToast(error.message); return; } populateSelect('#question-subject', questions.map(q => q.subject)); populateSelect('#question-year', questions.map(q => q.year).sort((a, b) => Number(b) - Number(a))); const render = () => { const query = ($('#question-search').value || '').toLowerCase().trim(); const subject = $('#question-subject').value; const year = $('#question-year').value; const shown = questions.filter(q => (!query || `${q.text} ${q.paper} ${q.subject}`.toLowerCase().includes(query)) && (!subject || q.subject === subject) && (!year || String(q.year) === year)); $('#question-count').textContent = shown.length; table.innerHTML = shown.map(q => `<tr><td><span class="number-badge">${escapeHtml(q.number)}</span></td><td><strong class="question-text">${escapeHtml(q.text)}</strong></td><td>${escapeHtml(q.subject)}</td><td>${escapeHtml(q.paper)}</td><td>${escapeHtml(q.year)}</td></tr>`).join(''); empty.classList.toggle('hidden', shown.length > 0); if (emptyCopy && shown.length) emptyCopy.textContent = 'Try a different search phrase or filter.'; }; ['#question-search', '#question-subject', '#question-year'].forEach(id => $(id).addEventListener('input', render)); render(); }
-  async function initRepeated() { const status = $('#repeated-status'); const table = $('#repeated-table'); const empty = $('#repeated-empty'); const frequencyEmpty = $('#frequency-empty'); const setEmpty = message => { table.innerHTML = ''; empty.classList.remove('hidden'); empty.querySelector('p').textContent = message; frequencyEmpty.classList.remove('hidden'); $('#frequency-chart').innerHTML = ''; $('#repeated-total').textContent = '0'; $('#repeated-count').textContent = '0'; $('#repeated-highest').textContent = '—'; $('#top-question').textContent = 'No matching question'; $('#top-frequency').textContent = '—'; }; const render = data => { const sorted = [...data].sort((a, b) => $('#sort-repeated').value === 'asc' ? a.frequency - b.frequency : b.frequency - a.frequency); const highest = sorted.length ? Math.max(...sorted.map(q => q.frequency)) : 0; $('#repeated-total').textContent = sorted.length; $('#repeated-highest').textContent = highest ? `${highest}×` : '—'; $('#repeated-count').textContent = sorted.length; $('#top-question').textContent = sorted.length ? sorted[0].text : 'No matching question'; $('#top-frequency').textContent = sorted.length ? `${sorted[0].frequency}×` : '—'; const max = highest || 1; $('#frequency-chart').innerHTML = sorted.map((q, index) => `<div class="frequency-row"><span class="rank">${String(index + 1).padStart(2, '0')}</span><span class="freq-label">${escapeHtml(q.text)}</span><div class="freq-track"><i style="width:${q.frequency / max * 100}%"></i></div><strong>${q.frequency}×</strong></div>`).join(''); table.innerHTML = sorted.map((q, index) => `<tr><td><span class="rank-circle">${index + 1}</span></td><td><div class="match-pair"><strong class="question-text">${escapeHtml(q.text)}</strong><span class="match-arrow">↔</span><strong class="question-text">${escapeHtml(q.matchingText || 'Exact normalized match')}</strong></div><span class="match-badge ${q.matchType === 'Similar' ? 'similar' : ''}">${escapeHtml(q.matchType)} · ${q.similarityPercentage.toFixed(1)}%</span></td><td>${escapeHtml(q.subject)}</td><td><span class="frequency-badge">${q.frequency} times</span></td><td>${q.distinctPapers}</td><td>${q.years.join(', ') || 'Not provided'}</td><td>${q.paperFilenames.map(escapeHtml).join('<br>') || 'Not provided'}</td></tr>`).join(''); empty.classList.toggle('hidden', sorted.length > 0); frequencyEmpty.classList.toggle('hidden', sorted.length > 0); }; const load = async () => { status.textContent = 'Loading repeated questions from the Flask API...'; try { const data = await window.PYQApi.listRepeated({ subject: $('#repeated-subject-filter').value, exam_year: $('#repeated-exam-year-filter').value, min_frequency: $('#repeated-min-frequency').value }); status.textContent = 'Live repeated-question analysis loaded from the Flask API.'; populateSelect('#repeated-subject-filter', data.map(q => q.subject)); populateSelect('#repeated-exam-year-filter', data.flatMap(q => q.years).sort((a, b) => b - a)); data.length ? render(data) : setEmpty('No questions appear in at least two distinct papers in the database.'); } catch (error) { setEmpty('The Flask API could not load repeated questions. Check the server and try again.'); showToast(error.message); } }; ['#repeated-subject-filter', '#repeated-exam-year-filter', '#repeated-min-frequency', '#sort-repeated'].forEach(id => $(id).addEventListener('change', load)); $('#clear-repeated-filters').onclick = () => { $('#repeated-subject-filter').value = ''; $('#repeated-exam-year-filter').value = ''; $('#repeated-min-frequency').value = '2'; $('#sort-repeated').value = 'desc'; load(); }; setEmpty('Loading repeated questions...'); await load(); }
+  async function initRepeated() {
+    const status = $('#repeated-status');
+    const list = $('#repeated-list');
+    const empty = $('#repeated-empty');
+    const frequencyEmpty = $('#frequency-empty');
+    let currentData = [];
+
+    const setEmpty = message => {
+      list.innerHTML = '';
+      empty.classList.remove('hidden');
+      empty.querySelector('p').textContent = message;
+      frequencyEmpty.classList.remove('hidden');
+      $('#frequency-chart').innerHTML = '';
+      $('#repeated-total').textContent = '0';
+      $('#repeated-count').textContent = '0';
+      $('#repeated-highest').textContent = '—';
+      $('#top-question').textContent = 'No matching question';
+      $('#top-frequency').textContent = '—';
+    };
+
+    const render = data => {
+      const sorted = [...data].sort((a, b) =>
+        $('#sort-repeated').value === 'asc'
+          ? a.frequency - b.frequency
+          : b.frequency - a.frequency
+      );
+      const highest = sorted.length ? Math.max(...sorted.map(q => Number(q.frequency) || 0)) : 0;
+      $('#repeated-total').textContent = sorted.length;
+      $('#repeated-highest').textContent = highest ? `${highest}×` : '—';
+      $('#repeated-count').textContent = sorted.length;
+      $('#top-question').textContent = sorted.length ? sorted[0].text : 'No matching question';
+      $('#top-frequency').textContent = sorted.length ? `${sorted[0].frequency}×` : '—';
+
+      const top = sorted.slice(0, 5);
+      const max = Math.max(1, ...top.map(q => Number(q.frequency) || 0));
+      $('#frequency-chart').innerHTML = top.map((q, index) => `
+        <div class="repeated-bar-row">
+          <div class="repeated-bar-label"><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(q.text)}</strong><b>${q.frequency}×</b></div>
+          <div class="repeated-bar-track"><i style="width:${Math.max(4, (q.frequency / max) * 100)}%"></i></div>
+        </div>`
+      ).join('');
+
+      list.innerHTML = sorted.map((q, index) => {
+        const matchType = q.matchType || 'Exact';
+        const similarity = Number(q.similarityPercentage);
+        const years = Array.isArray(q.years) ? q.years : [];
+        const filenames = Array.isArray(q.paperFilenames) ? q.paperFilenames : [];
+        return `
+          <article class="repeat-card">
+            <div class="repeat-card-top">
+              <span class="repeat-rank">#${index + 1}</span>
+              <span class="repeat-type ${matchType === 'Similar' ? 'is-similar' : ''}">${escapeHtml(matchType)} match</span>
+              <span class="repeat-frequency">${escapeHtml(q.frequency)}× repeated</span>
+            </div>
+            <div class="repeat-question-grid">
+              <div class="repeat-question-block"><span>QUESTION</span><p>${escapeHtml(q.text)}</p></div>
+              <div class="repeat-match-divider">↔</div>
+              <div class="repeat-question-block repeat-question-secondary"><span>MATCHED WORDING</span><p>${escapeHtml(q.matchingText || q.text)}</p></div>
+            </div>
+            <div class="repeat-card-footer">
+              <div class="repeat-meta">
+                <span><b>Subject</b>${escapeHtml(q.subject || 'Not provided')}</span>
+                <span><b>Distinct papers</b>${escapeHtml(q.distinctPapers ?? filenames.length)}</span>
+                <span><b>Exam years</b>${escapeHtml(years.join(', ') || 'Not provided')}</span>
+                <span><b>Similarity</b>${Number.isFinite(similarity) ? similarity.toFixed(1) + '%' : '—'}</span>
+              </div>
+              <details class="repeat-sources"><summary>View source papers <span>${filenames.length}</span></summary><div>${filenames.length ? filenames.map(name => `<span>${escapeHtml(name)}</span>`).join('') : '<span>Source filenames unavailable</span>'}</div></details>
+            </div>
+          </article>`;
+      }).join('');
+
+      empty.classList.toggle('hidden', sorted.length > 0);
+      frequencyEmpty.classList.toggle('hidden', sorted.length > 0);
+    };
+
+    const load = async () => {
+      status.textContent = 'Loading repeated questions…';
+      list.innerHTML = '<div class="state">Refreshing analysis…</div>';
+      try {
+        const data = await window.PYQApi.listRepeated({
+          subject: $('#repeated-subject-filter').value,
+          exam_year: $('#repeated-exam-year-filter').value,
+          min_frequency: $('#repeated-min-frequency').value
+        });
+        currentData = data;
+        status.textContent = `${data.length} matched question pair(s) in this view`;
+        populateSelect('#repeated-subject-filter', data.map(q => q.subject));
+        populateSelect('#repeated-exam-year-filter', data.flatMap(q => q.years || []).sort((a, b) => Number(b) - Number(a)));
+        data.length ? render(data) : setEmpty('No questions appear in at least two distinct papers with these filters.');
+      } catch (error) {
+        setEmpty('The question analysis could not be loaded. Check the server and try again.');
+        status.textContent = 'Unable to load analysis';
+        showToast(error.message);
+      }
+    };
+
+    ['#repeated-subject-filter', '#repeated-exam-year-filter', '#repeated-min-frequency'].forEach(id =>
+      $(id).addEventListener('change', load)
+    );
+    $('#sort-repeated').addEventListener('change', () => render(currentData));
+    $('#clear-repeated-filters').onclick = () => {
+      $('#repeated-subject-filter').value = '';
+      $('#repeated-exam-year-filter').value = '';
+      $('#repeated-min-frequency').value = '2';
+      $('#sort-repeated').value = 'desc';
+      load();
+    };
+    setEmpty('Loading repeated questions…');
+    await load();
+  }
   async function initDetails() {
     const paperId=Number(new URLSearchParams(location.search).get('id'));
     const viewer=$('#pdf-viewer'), unavailable=$('#pdf-unavailable');
