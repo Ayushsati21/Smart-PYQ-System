@@ -32,6 +32,16 @@ from .upload_service import UploadProcessingError, UploadValidationError, proces
 from .storage import StorageError, download_pdf
 
 
+def _safe_error_detail(error: Exception) -> str:
+    """Return a bounded error message without leaking configured secrets."""
+    detail = str(error)
+    for secret_name in ("MYSQL_PASSWORD", "SUPABASE_SERVICE_ROLE_KEY", "FLASK_SECRET_KEY"):
+        secret = os.environ.get(secret_name)
+        if secret:
+            detail = detail.replace(secret, "<redacted>")
+    return detail[:500]
+
+
 app = Flask(__name__)
 app.config.update(
     SECRET_KEY=os.environ.get("FLASK_SECRET_KEY"),
