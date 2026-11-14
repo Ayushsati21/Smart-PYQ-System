@@ -24,7 +24,7 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 INPUT_DIR = BASE_DIR / "input_pdfs"
 OUTPUT_DIR = BASE_DIR / "output_text"
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
-REQUIRED_FIELDS = ("subject", "academic_year", "semester", "exam_year", "term", "paper_code")
+REQUIRED_FIELDS = ("course", "subject", "academic_year", "semester", "exam_year", "term", "paper_code")
 logger = logging.getLogger(__name__)
 
 
@@ -121,7 +121,7 @@ def _persist(
         cursor.execute("SHOW COLUMNS FROM question_papers")
         columns = {row[0] for row in cursor.fetchall()}
         required = {
-            "id", "pdf_filename", "pdf_relative_path", "text_file_path", "subject",
+            "id", "pdf_filename", "pdf_relative_path", "text_file_path", "course", "subject",
             "academic_year", "semester", "paper_code", "exam_year", "term",
             "total_pages", "ocr_characters", "extracted_text",
         }
@@ -135,14 +135,14 @@ def _persist(
         cursor.execute(
             """
             INSERT INTO question_papers (
-                pdf_filename, pdf_relative_path, text_file_path, subject, academic_year,
+                pdf_filename, pdf_relative_path, text_file_path, course, subject, academic_year,
                 semester, paper_code, exam_year, term, total_pages, ocr_characters,
                 extracted_text
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             ON DUPLICATE KEY UPDATE
                 pdf_filename = VALUES(pdf_filename),
                 text_file_path = VALUES(text_file_path),
-                subject = VALUES(subject),
+                course = VALUES(course),\n                subject = VALUES(subject),
                 academic_year = VALUES(academic_year),
                 semester = VALUES(semester),
                 paper_code = VALUES(paper_code),
@@ -157,7 +157,7 @@ def _persist(
                 pdf_name,
                 pdf_relative_path,
                 text_relative_path,
-                metadata["subject"],
+                metadata["course"],\n                metadata["subject"],
                 metadata["academic_year"],
                 metadata["semester"],
                 metadata["paper_code"],
