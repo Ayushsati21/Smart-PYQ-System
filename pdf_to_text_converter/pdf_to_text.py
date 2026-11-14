@@ -62,8 +62,8 @@ def pdf_has_images(pdf_path):
         return any(page.get_images(full=True) for page in pdf)
 
 
-def extract_with_tesseract(pdf_path, dpi_scale=2):
-    """OCR image-based pages with the lightweight system Tesseract engine."""
+def extract_with_tesseract(pdf_path, dpi_scale=1.5, page_timeout=10):
+    """OCR image-based pages with bounded CPU and memory use for small hosts."""
     try:
         import pytesseract
         from PIL import Image
@@ -82,7 +82,9 @@ def extract_with_tesseract(pdf_path, dpi_scale=2):
                 alpha=False,
             )
             image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
-            page_text = pytesseract.image_to_string(image, config="--psm 6").strip()
+            page_text = pytesseract.image_to_string(
+                image, config="--psm 6", timeout=page_timeout
+            ).strip()
             page_texts.append(f"--- PAGE {page_number} ---\n{page_text}")
     return "\n\n".join(page_texts), len(page_texts)
 
