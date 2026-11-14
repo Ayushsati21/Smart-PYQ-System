@@ -4,6 +4,18 @@ from pyq_questions import extract_questions
 
 
 class OCRQuestionExtractionTests(unittest.TestCase):
+    def test_splits_inline_numbered_subquestion_markers(self):
+        ocr_text = """Question text before marker 3(a) Delete a node from a singly linked list.
+More text for part a. 3(b) Insert a node before the last node.
+"""
+        questions = extract_questions(ocr_text)
+        self.assertEqual(
+            [question["question_number"] for question in questions],
+            ["3(a)", "3(b)"],
+        )
+        self.assertIn("Delete a node", questions[0]["question_text"])
+        self.assertIn("Insert a node", questions[1]["question_text"])
+
     def test_recovers_all_ten_alternatives_from_common_ocr_noise(self):
         ocr_text = """--- PAGE 1 ---
 Qu. (10*1,C01,C02)

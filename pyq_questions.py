@@ -71,12 +71,33 @@ def extract_questions(ocr_text):
             return label == "a"
         return label == chr(ord(current_sub_number) + 1)
 
-    # OCR commonly reads the first heading "Q1." as "Qu." and may prefix
-    # alternative labels with stray punctuation (for example, ". B,").
+    # OCR may merge question and alternative markers into preceding text.
+    # Split only explicit Q headings, A/B labels, and OR; leave numeric
+    # expressions (for example postfix notation) untouched.
+    ocr_text = re.sub(
+        r"(?i)(?<!\w)(?=Q\s*(?:\d{1,3}|[.,])|[AB]\s*[.,)]|OR\b)",
+        "\n",
+        ocr_text,
+    )
+    # OCR sometimes emits explicit labels like "3(a)" / "3(b)" inline.
+    # Convert these to the same numbered-heading + subpart format used below.
+    ocr_text = re.sub(
+        r"(?<!\w)(\d{1,2})\s*\(([ab])\)",
+        lambda match: f"\nQ{match.group(1)}.\n{match.group(2)}.",
+        ocr_text,
+        flags=re.IGNORECASE,
+    )
+    # OCR commonly reads the first heading "Q1." as "Qu.".
     ocr_text = re.sub(r"(?im)^\s*Qu\s*[.]", "Q1.", ocr_text)
 
     for line in ocr_text.splitlines():
         line = re.sub(r"^\s*[.:;]+\s*", "", line)
+        # Normalize common OCR punctuation around numbered headings.
+        line = re.sub(r"(?i)^Q\s*(\d{1,3})\s*[,)]", r"Q\1.", line)
+        # A bare "Q." usually denotes the next numbered question.
+        if re.match(r"(?i)^Q\s*[.,)]", line):
+            next_number = int(main_number) + 1 if main_number and str(main_number).isdigit() else 1
+            line = re.sub(r"(?i)^Q\s*[.,)]", f"Q{next_number}.", line, count=1)
         if PAGE_MARKER.match(line) or line.strip().casefold() == "or":
             continue
         bare_heading = BARE_QUESTION_START.match(line)

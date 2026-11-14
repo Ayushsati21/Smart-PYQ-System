@@ -1,0 +1,24 @@
+name: Question extraction tests
+
+on:
+  pull_request:
+    paths:
+      - "pyq_questions.py"
+      - "test_question_extraction.py"
+      - ".github/workflows/question-extraction-tests.yml"
+  push:
+    branches:
+      - main
+
+jobs:
+  question-extraction:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run question extraction tests
+        run: python -m unittest -v test_question_extraction.py
