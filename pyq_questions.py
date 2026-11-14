@@ -11,7 +11,7 @@ QUESTION_START = re.compile(
 )
 BARE_QUESTION_START = re.compile(r"^\s*Q\s*(?:\d{1,3}|[Il])\s*$", re.IGNORECASE)
 SUBQUESTION_START = re.compile(
-    r"^\s*(?:\(([a-z]+)\)|([a-z])[.)])\s*(.*?)\s*$",
+    r"^\s*(?:\(([a-z]+)\)|([a-z])[.,)])\s*(.*?)\s*$",
     re.IGNORECASE,
 )
 PAGE_MARKER = re.compile(r"^\s*---\s*PAGE\s+\d+\s*---\s*$", re.IGNORECASE)
