@@ -98,8 +98,7 @@ def _unique_name(safe_name: str) -> str:
 
 
 def _character_count(text: str) -> int:
-    pages = re.split(r"(?m)^--- PAGE \d+ ---\s*\r?
-", text)
+    pages = re.split(r"(?m)^--- PAGE \d+ ---\s*\r?\n", text)
     return sum(len(page.strip()) for page in pages[1:]) if len(pages) > 1 else len(text.strip())
 
 
