@@ -83,8 +83,8 @@ def extract_with_tesseract(pdf_path, dpi_scale=2):
             )
             image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
             page_text = pytesseract.image_to_string(image, config="--psm 6").strip()
-            page_texts.append(f"--- PAGE {page_number} ---\\n{page_text}")
-    return "\\n\\n".join(page_texts), len(page_texts)
+            page_texts.append(f"--- PAGE {page_number} ---\n{page_text}")
+    return "\n\n".join(page_texts), len(page_texts)
 
 
 def convert_pdf(pdf_path, output_path, ocr=None):
