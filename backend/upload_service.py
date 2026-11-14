@@ -253,10 +253,18 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
             from pdf_to_text_converter.pdf_to_text import convert_pdf
         except ModuleNotFoundError as exc:
             raise UploadProcessingError(
-                f"OCR dependency is unavailable: {exc.name}. Install the existing PaddleOCR/PyMuPDF dependencies."
+                f"PDF text extraction dependency is unavailable: {exc.name}. "
+                "Install PyMuPDF in the backend environment."
             ) from exc
 
-        extracted_text, total_pages = convert_pdf(temporary_pdf, temporary_text)
+        try:
+            extracted_text, total_pages = convert_pdf(temporary_pdf, temporary_text)
+        except ValueError as exc:
+            # Scanned PDFs need PaddleOCR. Never load it in the 512 MB hosted worker.
+            if "appears to be scanned" in str(exc):
+                raise UploadProcessingError(str(exc)) from exc
+            raise
+
         from pyq_questions import extract_questions
         questions = extract_questions(extracted_text)
 
