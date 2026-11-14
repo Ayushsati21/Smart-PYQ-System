@@ -79,6 +79,14 @@ def extract_questions(ocr_text):
         "\n",
         ocr_text,
     )
+    # OCR sometimes emits explicit labels like "3(a)" / "3(b)" inline.
+    # Convert these to the same numbered-heading + subpart format used below.
+    ocr_text = re.sub(
+        r"(?<!\w)(\d{1,2})\s*\(([ab])\)",
+        lambda match: f"\\nQ{match.group(1)}.\\n{match.group(2)}.",
+        ocr_text,
+        flags=re.IGNORECASE,
+    )
     # OCR commonly reads the first heading "Q1." as "Qu.".
     ocr_text = re.sub(r"(?im)^\s*Qu\s*[.]", "Q1.", ocr_text)
 
