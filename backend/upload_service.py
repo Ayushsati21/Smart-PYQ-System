@@ -17,6 +17,7 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.utils import secure_filename
 
 from .db import DatabaseConfigurationError, DatabaseQueryError, get_connection
+from .storage import StorageError, delete_pdf, upload_pdf
 
 
 BASE_DIR = Path(__file__).resolve().parents[1]
@@ -237,20 +238,17 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
         raise UploadValidationError("A PDF file is required.")
 
     safe_name = _safe_pdf_name(file.filename)
+    stored_name = safe_name[:180]
+    token = uuid.uuid4().hex
+    storage_key = f"papers/{token}-{stored_name}"
     INPUT_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    token = uuid.uuid4().hex
     temporary_pdf = INPUT_DIR / f".upload-{token}.part"
-    final_name = _unique_name(safe_name)
-    final_pdf = INPUT_DIR / final_name
     temporary_text = OUTPUT_DIR / f".upload-{token}.txt"
-    final_text = OUTPUT_DIR / f"{Path(final_name).stem}.txt"
-    completed = False
+    uploaded_to_storage = False
 
     try:
         _write_upload(file, temporary_pdf)
-
-        # Reuse the existing converter; do not duplicate PaddleOCR setup here.
         try:
             from pdf_to_text_converter.pdf_to_text import convert_pdf
         except ModuleNotFoundError as exc:
@@ -259,43 +257,45 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
             ) from exc
 
         extracted_text, total_pages = convert_pdf(temporary_pdf, temporary_text)
-
-        # Reuse the existing numbered-question extraction and normalization.
         from pyq_questions import extract_questions
-
         questions = extract_questions(extracted_text)
-        os.replace(temporary_pdf, final_pdf)
-        os.replace(temporary_text, final_text)
 
-        pdf_relative_path = final_pdf.relative_to(BASE_DIR).as_posix()
-        text_relative_path = final_text.relative_to(BASE_DIR).as_posix()
+        upload_pdf(storage_key, temporary_pdf.read_bytes())
+        uploaded_to_storage = True
         paper_id, warnings = _persist(
-            metadata,
-            final_name,
-            pdf_relative_path,
-            text_relative_path,
-            extracted_text,
-            total_pages,
-            questions,
+            metadata, safe_name, storage_key, None, extracted_text,
+            total_pages, questions,
         )
-        completed = True
         return {
             "id": paper_id,
-            "pdf_filename": final_name,
-            "pdf_relative_path": pdf_relative_path,
-            "text_file_path": text_relative_path,
+            "pdf_filename": safe_name,
+            "pdf_relative_path": storage_key,
             "total_pages": total_pages,
             "ocr_characters": _character_count(extracted_text),
             "question_count": len(questions),
             "warnings": warnings,
         }
     except (UploadValidationError, DatabaseConfigurationError, DatabaseQueryError, UploadProcessingError):
+        if uploaded_to_storage:
+            try:
+                delete_pdf(storage_key)
+            except StorageError:
+                logger.exception("Could not clean up Supabase object %s", storage_key)
         raise
+    except StorageError as exc:
+        if uploaded_to_storage:
+            try:
+                delete_pdf(storage_key)
+            except StorageError:
+                logger.exception("Could not clean up Supabase object %s", storage_key)
+        raise UploadProcessingError("PDF storage operation failed. Check Supabase configuration and bucket.") from exc
     except Exception as exc:
+        if uploaded_to_storage:
+            try:
+                delete_pdf(storage_key)
+            except StorageError:
+                logger.exception("Could not clean up Supabase object %s", storage_key)
         raise UploadProcessingError("PDF processing failed.") from exc
     finally:
-        for path in (temporary_pdf, temporary_text):
-            path.unlink(missing_ok=True)
-        if not completed:
-            final_pdf.unlink(missing_ok=True)
-            final_text.unlink(missing_ok=True)
+        temporary_pdf.unlink(missing_ok=True)
+        temporary_text.unlink(missing_ok=True)

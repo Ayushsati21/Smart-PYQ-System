@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+from io import BytesIO
 
 from flask import Flask, jsonify, request, send_file
 from werkzeug.utils import secure_filename
@@ -27,7 +28,8 @@ from .auth import (
     get_current_admin_session,
     refresh_csrf_token,
 )
-from .upload_service import INPUT_DIR, UploadProcessingError, UploadValidationError, process_upload
+from .upload_service import UploadProcessingError, UploadValidationError, process_upload
+from .storage import StorageError, download_pdf
 
 
 app = Flask(__name__)
@@ -48,39 +50,24 @@ def health():
 
 
 class PDFPathError(ValueError):
-    """Raised when a stored PDF path is missing or outside the PDF directory."""
+    """Raised when a stored PDF storage key is invalid."""
 
 
-def _resolve_paper_pdf(record: dict) -> tuple[object, str]:
-    """Resolve a database PDF reference without allowing filesystem traversal."""
+def _resolve_paper_pdf(record: dict) -> tuple[str, str]:
+    """Validate the Supabase object key stored in TiDB."""
 
-    stored_path = record.get("pdf_relative_path")
-    if not isinstance(stored_path, str) or not stored_path.strip():
+    storage_key = record.get("pdf_relative_path")
+    if (
+        not isinstance(storage_key, str)
+        or not storage_key.startswith("papers/")
+        or ".." in storage_key.split("/")
+        or len(storage_key) > 255
+    ):
         raise PDFPathError("PDF file is unavailable.")
-
-    if os.path.isabs(stored_path) or os.path.splitdrive(stored_path)[0]:
+    filename = secure_filename(str(record.get("pdf_filename") or ""))
+    if not filename or not filename.lower().endswith(".pdf"):
         raise PDFPathError("PDF file is unavailable.")
-    relative_path = os.path.normpath(stored_path.replace("/", os.sep))
-    storage_name = INPUT_DIR.name
-    if relative_path == storage_name:
-        raise PDFPathError("PDF file is unavailable.")
-    if relative_path.startswith(storage_name + os.sep):
-        relative_path = relative_path[len(storage_name) + 1 :]
-
-    storage_root = INPUT_DIR.resolve()
-    resolved = (storage_root / relative_path).resolve()
-    try:
-        resolved.relative_to(storage_root)
-    except ValueError as exc:
-        raise PDFPathError("PDF file is unavailable.") from exc
-
-    if resolved.suffix.casefold() != ".pdf" or not resolved.is_file():
-        raise PDFPathError("PDF file is unavailable.")
-
-    filename = secure_filename(str(record.get("pdf_filename") or resolved.name))
-    if not filename:
-        raise PDFPathError("PDF file is unavailable.")
-    return resolved, filename
+    return storage_key, filename
 
 
 def _serve_paper_pdf(paper_id: int, *, as_attachment: bool):
@@ -88,27 +75,20 @@ def _serve_paper_pdf(paper_id: int, *, as_attachment: bool):
     if record is None:
         return jsonify({"error": "Question paper not found."}), 404
     try:
-        pdf_path, download_name = _resolve_paper_pdf(record)
+        storage_key, download_name = _resolve_paper_pdf(record)
+        pdf_bytes = download_pdf(storage_key)
     except PDFPathError:
         return jsonify({"error": "PDF file is unavailable."}), 404
+    except StorageError:
+        app.logger.exception("Supabase PDF retrieval failed for paper %s", paper_id)
+        return jsonify({"error": "PDF storage is temporarily unavailable."}), 503
     return send_file(
-        pdf_path,
+        BytesIO(pdf_bytes),
         mimetype="application/pdf",
         as_attachment=as_attachment,
         download_name=download_name,
-        conditional=True,
+        conditional=False,
     )
-
-
-def _safe_error_detail(error: Exception) -> str:
-    """Return bounded error text without emitting configured secrets."""
-
-    detail = str(error)
-    password = os.environ.get("MYSQL_PASSWORD")
-    if password:
-        detail = detail.replace(password, "<redacted>")
-    detail = re.sub(r"(?i)(password\s*[=:]\s*)[^\s,;]+", r"\1<redacted>", detail)
-    return detail[:500]
 
 
 @app.after_request
