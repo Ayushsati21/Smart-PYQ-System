@@ -132,6 +132,8 @@ window.PYQApi = {
   },
   async deletePaper(paperId) {
     if (window.API_CONFIG.useMockData) throw new Error('Paper deletion requires the live API.');
+    const admin = await window.PYQAuth.getCurrentAdmin();
+    if (!admin || !window.PYQAuth.csrfToken) throw new Error('Your admin session expired. Please sign in again.');
     return fetch(`${window.API_CONFIG.baseUrl}/papers/${encodeURIComponent(paperId)}`, {
       method: 'DELETE',
       headers: window.PYQAuth.csrfHeaders(),
