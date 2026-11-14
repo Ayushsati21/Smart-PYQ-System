@@ -15,16 +15,12 @@
     <a class="back-link" href="explore.html">← Back to papers</a>
     <div class="page-heading detail-heading">
       <div><p class="eyebrow">PAPER DETAILS</p><h1 id="detail-title">Loading paper...</h1><p class="muted" id="detail-subtitle"></p></div>
-      <button class="button primary" id="download-paper">↓ Download PDF</button>
+      <div class="pdf-actions"><button class="button ghost" id="fullscreen-paper" type="button">⛶ Full Screen</button><button class="button primary" id="download-paper" type="button">↓ Download PDF</button></div>
     </div>
-    <div class="detail-meta" id="detail-meta"></div>
-    <div class="content-grid detail-layout">
-      <section class="card pdf-card">
-        <div class="section-heading"><div><h2>PDF preview</h2><p class="muted">View the original uploaded document.</p></div><span class="badge soft">PDF</span></div>
-        <div class="pdf-preview"><iframe id="pdf-viewer" title="Question paper PDF" loading="lazy" style="width:100%;height:480px;border:0;border-radius:8px;background:#fff"></iframe><div class="state hidden" id="pdf-unavailable"><h3>PDF unavailable</h3><p>We could not load the original PDF for this paper.</p></div></div>
-      </section>
-      <section class="card"><div class="section-heading"><div><h2>Extracted questions</h2><p class="muted" id="detail-question-count"></p></div></div><div class="question-stack" id="detail-questions"></div></section>
-    </div>
+    <section class="card pdf-viewer-card">
+      <div class="section-heading"><div><h2 id="detail-title">Loading paper...</h2><p class="muted" id="detail-subtitle"></p></div><span class="badge soft">PDF DOCUMENT</span></div>
+      <div class="pdf-preview"><iframe id="pdf-viewer" title="Question paper PDF" loading="lazy" allow="fullscreen" style="width:100%;height:calc(100vh - 250px);min-height:620px;border:0;border-radius:8px;background:#fff"></iframe><div class="state hidden" id="pdf-unavailable"><h3>PDF unavailable</h3><p>We could not load the original PDF for this paper.</p></div></div>
+    </section>
   </main>
   <div class="toast" id="toast"></div>
   <script src="js/mock-data.js"></script><script src="js/api.js"></script><script src="js/app.js"></script>
