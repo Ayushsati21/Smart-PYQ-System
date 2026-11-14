@@ -62,7 +62,7 @@ def pdf_has_images(pdf_path):
         return any(page.get_images(full=True) for page in pdf)
 
 
-def extract_with_tesseract(pdf_path, dpi_scale=1.5, page_timeout=10):
+def extract_with_tesseract(pdf_path, dpi_scale=1.5, page_timeout=45):
     """OCR image-based pages with bounded CPU and memory use for small hosts."""
     try:
         import pytesseract
