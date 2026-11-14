@@ -131,8 +131,12 @@ window.PYQApi = {
     return fetch(`${window.API_CONFIG.baseUrl}/papers/${paperId}`, { method: 'PATCH', body: JSON.stringify(metadata), headers: { 'Content-Type': 'application/json' }, credentials: 'include' }).then(readApiResponse);
   },
   async deletePaper(paperId) {
-    if (window.API_CONFIG.useMockData) return { deleted: true, preview: true, paperId };
-    return fetch(`${window.API_CONFIG.baseUrl}/papers/${paperId}`, { method: 'DELETE', credentials: 'include' }).then(readApiResponse);
+    if (window.API_CONFIG.useMockData) throw new Error('Paper deletion requires the live API.');
+    return fetch(`${window.API_CONFIG.baseUrl}/papers/${encodeURIComponent(paperId)}`, {
+      method: 'DELETE',
+      headers: window.PYQAuth.csrfHeaders(),
+      credentials: 'include'
+    }).then(readApiResponse);
   },
   async _read(response) { return readApiResponse(response); }
 };
