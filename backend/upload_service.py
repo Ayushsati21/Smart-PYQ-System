@@ -98,7 +98,8 @@ def _unique_name(safe_name: str) -> str:
 
 
 def _character_count(text: str) -> int:
-    pages = re.split(r"(?m)^--- PAGE \d+ ---\s*\r?\n", text)
+    pages = re.split(r"(?m)^--- PAGE \d+ ---\s*\r?
+", text)
     return sum(len(page.strip()) for page in pages[1:]) if len(pages) > 1 else len(text.strip())
 
 
@@ -142,7 +143,8 @@ def _persist(
             ON DUPLICATE KEY UPDATE
                 pdf_filename = VALUES(pdf_filename),
                 text_file_path = VALUES(text_file_path),
-                course = VALUES(course),\n                subject = VALUES(subject),
+                course = VALUES(course),
+                subject = VALUES(subject),
                 academic_year = VALUES(academic_year),
                 semester = VALUES(semester),
                 paper_code = VALUES(paper_code),
@@ -157,7 +159,8 @@ def _persist(
                 pdf_name,
                 pdf_relative_path,
                 text_relative_path,
-                metadata["course"],\n                metadata["subject"],
+                metadata["course"],
+                metadata["subject"],
                 metadata["academic_year"],
                 metadata["semester"],
                 metadata["paper_code"],
