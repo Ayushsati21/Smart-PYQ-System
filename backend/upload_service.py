@@ -259,13 +259,25 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
                 "Install PyMuPDF in the backend environment."
             ) from exc
 
+        used_tesseract = False
         try:
             extracted_text, total_pages = convert_pdf(temporary_pdf, temporary_text)
         except ValueError as exc:
-            # Scanned PDFs need PaddleOCR. Never load it in the 512 MB hosted worker.
-            if "appears to be scanned" in str(exc):
-                raise UploadProcessingError(str(exc)) from exc
-            raise
+            if "appears to be scanned" not in str(exc):
+                raise
+
+            # The Render Docker image includes the Tesseract system binary.
+            # Use it for scanned PDFs instead of rejecting the upload.
+            try:
+                from pdf_to_text_converter.pdf_to_text import extract_with_tesseract
+                extracted_text, total_pages = extract_with_tesseract(temporary_pdf)
+                used_tesseract = True
+            except Exception as ocr_error:
+                logger.exception("Tesseract OCR failed for scanned PDF")
+                raise UploadProcessingError(
+                    "This PDF is scanned and automatic OCR failed. "
+                    "Please retry or upload a searchable PDF."
+                ) from ocr_error
 
         from pyq_questions import extract_questions
         questions = extract_questions(extracted_text)
@@ -278,7 +290,7 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
                 extract_with_tesseract,
                 pdf_has_images,
             )
-            if pdf_has_images(temporary_pdf):
+            if pdf_has_images(temporary_pdf) and not used_tesseract:
                 tesseract_text, tesseract_pages = extract_with_tesseract(temporary_pdf)
                 tesseract_questions = extract_questions(tesseract_text)
                 if len(tesseract_questions) > len(questions):
