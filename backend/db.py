@@ -156,6 +156,29 @@ def get_paper(paper_id: int) -> dict[str, Any] | None:
         connection.close()
 
 
+
+def delete_paper_record(paper_id: int) -> bool:
+    """Delete a paper and its extracted questions in one database transaction."""
+    connection = get_connection()
+    cursor = None
+    try:
+        cursor = connection.cursor()
+        cursor.execute("SELECT id FROM question_papers WHERE id = %s FOR UPDATE", (paper_id,))
+        if cursor.fetchone() is None:
+            connection.rollback()
+            return False
+        cursor.execute("DELETE FROM questions WHERE paper_id = %s", (paper_id,))
+        cursor.execute("DELETE FROM question_papers WHERE id = %s", (paper_id,))
+        connection.commit()
+        return True
+    except Error as exc:
+        connection.rollback()
+        raise DatabaseQueryError("Unable to delete the requested question paper.") from exc
+    finally:
+        if cursor is not None:
+            cursor.close()
+        connection.close()
+
 def get_dashboard_summary(recent_limit: int = 5) -> dict[str, Any]:
     """Return read-only aggregate data for the public/admin dashboard."""
 
