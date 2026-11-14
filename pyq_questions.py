@@ -77,7 +77,7 @@ def extract_questions(ocr_text):
 
     for line in ocr_text.splitlines():
         line = re.sub(r"^\s*[.:;]+\s*", "", line)
-        if PAGE_MARKER.match(line):
+        if PAGE_MARKER.match(line) or line.strip().casefold() == "or":
             continue
         bare_heading = BARE_QUESTION_START.match(line)
         if bare_heading:
