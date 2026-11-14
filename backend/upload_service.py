@@ -268,6 +268,29 @@ def process_upload(file: FileStorage | None, form: Any) -> dict[str, Any]:
         from pyq_questions import extract_questions
         questions = extract_questions(extracted_text)
 
+        # Scanned exam papers can contain a noisy or incomplete embedded OCR
+        # layer. If the PDF contains page images, compare it with Tesseract OCR
+        # and keep whichever extraction identifies more question choices.
+        try:
+            from pdf_to_text_converter.pdf_to_text import (
+                extract_with_tesseract,
+                pdf_has_images,
+            )
+            if pdf_has_images(temporary_pdf):
+                tesseract_text, tesseract_pages = extract_with_tesseract(temporary_pdf)
+                tesseract_questions = extract_questions(tesseract_text)
+                if len(tesseract_questions) > len(questions):
+                    logger.info(
+                        "Tesseract improved question extraction from %s to %s questions",
+                        len(questions),
+                        len(tesseract_questions),
+                    )
+                    extracted_text = tesseract_text
+                    total_pages = tesseract_pages
+                    questions = tesseract_questions
+        except Exception:
+            logger.exception("Tesseract fallback failed; retaining embedded PDF text extraction")
+
         upload_pdf(storage_key, temporary_pdf.read_bytes())
         uploaded_to_storage = True
         paper_id, warnings = _persist(
