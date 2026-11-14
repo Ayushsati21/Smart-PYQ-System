@@ -94,15 +94,12 @@
     const status = $('#repeated-status');
     const list = $('#repeated-list');
     const empty = $('#repeated-empty');
-    const frequencyEmpty = $('#frequency-empty');
     let currentData = [];
 
     const setEmpty = message => {
       list.innerHTML = '';
       empty.classList.remove('hidden');
       empty.querySelector('p').textContent = message;
-      frequencyEmpty.classList.remove('hidden');
-      $('#frequency-chart').innerHTML = '';
       $('#repeated-total').textContent = '0';
       $('#repeated-count').textContent = '0';
       $('#repeated-highest').textContent = '—';
@@ -123,14 +120,6 @@
       $('#top-question').textContent = sorted.length ? sorted[0].text : 'No matching question';
       $('#top-frequency').textContent = sorted.length ? `${sorted[0].frequency}×` : '—';
 
-      const top = sorted.slice(0, 5);
-      const max = Math.max(1, ...top.map(q => Number(q.frequency) || 0));
-      $('#frequency-chart').innerHTML = top.map((q, index) => `
-        <div class="repeated-bar-row">
-          <div class="repeated-bar-label"><span>${String(index + 1).padStart(2, '0')}</span><strong>${escapeHtml(q.text)}</strong><b>${q.frequency}×</b></div>
-          <div class="repeated-bar-track"><i style="width:${Math.max(4, (q.frequency / max) * 100)}%"></i></div>
-        </div>`
-      ).join('');
 
       list.innerHTML = sorted.map((q, index) => {
         const matchType = q.matchType || 'Exact';
@@ -162,7 +151,6 @@
       }).join('');
 
       empty.classList.toggle('hidden', sorted.length > 0);
-      frequencyEmpty.classList.toggle('hidden', sorted.length > 0);
     };
 
     const load = async () => {
