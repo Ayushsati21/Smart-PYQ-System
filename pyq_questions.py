@@ -11,7 +11,7 @@ QUESTION_START = re.compile(
 )
 BARE_QUESTION_START = re.compile(r"^\s*Q\s*(?:\d{1,3}|[Il])\s*$", re.IGNORECASE)
 SUBQUESTION_START = re.compile(
-    r"^\s*(?:\(([a-z]+)\)|([a-z])[.)])\s*(.*?)\s*$",
+    r"^\s*(?:\(([a-z]+)\)|([a-z])[.,)])\s*(.*?)\s*$",
     re.IGNORECASE,
 )
 PAGE_MARKER = re.compile(r"^\s*---\s*PAGE\s+\d+\s*---\s*$", re.IGNORECASE)
@@ -71,8 +71,13 @@ def extract_questions(ocr_text):
             return label == "a"
         return label == chr(ord(current_sub_number) + 1)
 
+    # OCR commonly reads the first heading "Q1." as "Qu." and may prefix
+    # alternative labels with stray punctuation (for example, ". B,").
+    ocr_text = re.sub(r"(?im)^\s*Qu\s*[.]", "Q1.", ocr_text)
+
     for line in ocr_text.splitlines():
-        if PAGE_MARKER.match(line):
+        line = re.sub(r"^\s*[.:;]+\s*", "", line)
+        if PAGE_MARKER.match(line) or line.strip().casefold() == "or":
             continue
         bare_heading = BARE_QUESTION_START.match(line)
         if bare_heading:
