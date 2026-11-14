@@ -1,7 +1,8 @@
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    OMP_THREAD_LIMIT=1
 
 # Install the Tesseract system binary required by pytesseract.
 RUN apt-get update \
@@ -15,4 +16,4 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt PyMuPDF
 
 COPY . /app
 
-CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT backend.app:app"]
+CMD ["sh", "-c", "gunicorn --timeout 120 --graceful-timeout 30 --bind 0.0.0.0:$PORT backend.app:app"]
