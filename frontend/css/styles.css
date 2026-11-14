@@ -23,3 +23,9 @@
 .paper-folder{text-decoration:none}
 .pdf-art{font-size:14px;font-weight:800;color:#e76b65;background:#fff0ef;border-radius:9px;padding:12px 10px}
 @media(max-width:760px){.dashboard-stats{grid-template-columns:1fr 1fr}.folder-explorer{padding:17px}.folder-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.folder-card{min-height:125px;padding:13px 9px}}
+
+.pdf-actions{display:flex;gap:10px;align-items:center}
+.pdf-viewer-card{padding:22px}
+.pdf-viewer-card .pdf-preview{padding:6px;background:#e9eef5}
+.pdf-viewer-card iframe:fullscreen{width:100vw!important;height:100vh!important;min-height:100vh!important;border:0;border-radius:0}
+@media(max-width:760px){.pdf-actions{width:100%}.pdf-actions .button{flex:1}.pdf-viewer-card iframe{height:calc(100vh - 240px)!important;min-height:480px!important}}
