@@ -68,7 +68,7 @@ def get_connection():
 
 
 PAPER_COLUMNS = (
-    "id, pdf_filename, pdf_relative_path, text_file_path, subject, "
+    "id, pdf_filename, pdf_relative_path, text_file_path, course, subject, "
     "academic_year, semester, paper_code, exam_year, term, total_pages, ocr_characters, "
     "created_at, updated_at"
 )
