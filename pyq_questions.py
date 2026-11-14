@@ -71,7 +71,12 @@ def extract_questions(ocr_text):
             return label == "a"
         return label == chr(ord(current_sub_number) + 1)
 
+    # OCR commonly reads the first heading "Q1." as "Qu." and may prefix
+    # alternative labels with stray punctuation (for example, ". B,").
+    ocr_text = re.sub(r"(?im)^\\s*Qu\\s*[.]", "Q1.", ocr_text)
+
     for line in ocr_text.splitlines():
+        line = re.sub(r"^\\s*[.:;]+\\s*", "", line)
         if PAGE_MARKER.match(line):
             continue
         bare_heading = BARE_QUESTION_START.match(line)
