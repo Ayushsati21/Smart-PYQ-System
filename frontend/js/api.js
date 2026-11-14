@@ -58,6 +58,7 @@ window.PYQApi = {
     const payload = await fetch(`${window.API_CONFIG.baseUrl}/papers?${new URLSearchParams(filters)}`, { credentials: 'omit' }).then(readApiResponse);
     return (payload.data || payload).map(paper => ({
       ...paper,
+      course: paper.course || 'Unassigned',
       name: paper.name || String(paper.pdf_filename || 'Untitled paper').replace(/\.pdf$/i, ''),
       filename: paper.filename || paper.pdf_filename || 'PDF filename unavailable',
       academicYear: paper.academicYear || paper.academic_year || 'Not provided',
