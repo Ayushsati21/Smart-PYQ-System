@@ -55,12 +55,43 @@ def create_ocr():
     )
 
 
+
+def pdf_has_images(pdf_path):
+    """Return True when any page contains a raster image (common in scanned papers)."""
+    with fitz.open(pdf_path) as pdf:
+        return any(page.get_images(full=True) for page in pdf)
+
+
+def extract_with_tesseract(pdf_path, dpi_scale=2):
+    """OCR image-based pages with the lightweight system Tesseract engine."""
+    try:
+        import pytesseract
+        from PIL import Image
+    except ModuleNotFoundError as exc:
+        raise RuntimeError(
+            "Tesseract OCR dependencies are unavailable. Install pytesseract, Pillow, "
+            "and the tesseract-ocr system package."
+        ) from exc
+
+    page_texts = []
+    with fitz.open(pdf_path) as pdf:
+        for page_number, page in enumerate(pdf, start=1):
+            pixmap = page.get_pixmap(
+                matrix=fitz.Matrix(dpi_scale, dpi_scale),
+                colorspace=fitz.csRGB,
+                alpha=False,
+            )
+            image = Image.frombytes("RGB", (pixmap.width, pixmap.height), pixmap.samples)
+            page_text = pytesseract.image_to_string(image, config="--psm 6").strip()
+            page_texts.append(f"--- PAGE {page_number} ---\\n{page_text}")
+    return "\\n\\n".join(page_texts), len(page_texts)
+
+
 def convert_pdf(pdf_path, output_path, ocr=None):
     """Write page-marked text. Use embedded text by default; OCR only when supplied.
 
-    The hosted Flask API calls this without an OCR engine to stay within its
-    memory limit. For scanned PDFs, run the local batch converter, which passes
-    a PaddleOCR engine explicitly.
+    The hosted upload service may compare this lightweight extraction with
+    Tesseract OCR for image-based PDFs.
     """
     pdf_path = Path(pdf_path)
     output_path = Path(output_path)
