@@ -13,6 +13,7 @@ from .db import (
     DatabaseConfigurationError,
     DatabaseQueryError,
     get_dashboard_summary,
+    delete_paper_record,
     get_paper,
     list_papers,
     list_questions,
@@ -29,7 +30,7 @@ from .auth import (
     refresh_csrf_token,
 )
 from .upload_service import UploadProcessingError, UploadValidationError, process_upload
-from .storage import StorageError, download_pdf
+from .storage import StorageError, delete_pdf, download_pdf
 
 
 def _safe_error_detail(error: Exception) -> str:
@@ -233,6 +234,36 @@ def paper(paper_id: int):
     except Exception:
         app.logger.exception("Unexpected error while retrieving paper %s", paper_id)
         return jsonify({"error": "Unexpected server error."}), 500
+
+
+@app.delete("/api/papers/<int:paper_id>")
+@admin_required
+def delete_paper(paper_id: int):
+    """Delete a paper and its extracted questions; remove its stored PDF afterward."""
+    try:
+        record = get_paper(paper_id)
+        if record is None:
+            return jsonify({"error": "Question paper not found."}), 404
+        storage_key, _ = _resolve_paper_pdf(record)
+        if not delete_paper_record(paper_id):
+            return jsonify({"error": "Question paper not found."}), 404
+        try:
+            delete_pdf(storage_key)
+        except StorageError:
+            app.logger.exception("Paper %s was deleted from MySQL but its PDF cleanup failed", paper_id)
+            return jsonify({
+                "message": "Paper and questions deleted from the database, but PDF cleanup failed.",
+                "storage_cleanup": "failed",
+            }), 200
+        return jsonify({"message": "Paper, extracted questions, and stored PDF deleted."})
+    except PDFPathError:
+        return jsonify({"error": "Stored PDF path is invalid; paper was not deleted."}), 409
+    except (DatabaseConfigurationError, DatabaseQueryError) as exc:
+        app.logger.exception("Database failure while deleting paper %s", paper_id)
+        return jsonify({"error": str(exc)}), 503
+    except Exception:
+        app.logger.exception("Unexpected error while deleting paper %s", paper_id)
+        return jsonify({"error": "Unexpected server error while deleting the paper."}), 500
 
 
 @app.get("/api/papers/<int:paper_id>/pdf")
