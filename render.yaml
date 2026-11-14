@@ -2,7 +2,7 @@ services:
   - type: web
     name: smart-pyq-api
     runtime: python
-    buildCommand: pip install -r backend/requirements.txt -r pdf_to_text_converter/requirements.txt
+    buildCommand: pip install -r backend/requirements.txt PyMuPDF
     startCommand: gunicorn --bind 0.0.0.0:$PORT backend.app:app
     healthCheckPath: /health
     envVars:
