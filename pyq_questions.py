@@ -79,8 +79,144 @@ def extract_questions(ocr_text):
         "\n",
         ocr_text,
     )
+    # Split explicit inline numbered markers before applying the general
+    # heading split. The question text before the first marker may be an
+    # instruction/header and must not be mistaken for a numbered question.
+    inline_marker = re.compile(r"(?<!\\w)(\\d{1,2})\\s*\\(([ab])\\)", re.IGNORECASE)
+    inline_matches = list(inline_marker.finditer(ocr_text))
+    if inline_matches:
+        rebuilt = []
+        cursor = 0
+        active_number = None
+        for match in inline_matches:
+            prefix = ocr_text[cursor:match.start()]
+            label = match.group(2).casefold()
+            number = match.group(1)
+            if active_number != number or label == "a":
+                rebuilt.append(prefix)
+            else:
+                rebuilt.append(prefix)
+            rebuilt.append(f"\\nQ{number}.\\n{label}.")
+            cursor = match.end()
+            active_number = number
+        rebuilt.append(ocr_text[cursor:])
+        ocr_text = "".join(rebuilt)
+
     # OCR sometimes emits explicit labels like "3(a)" / "3(b)" inline.
     # Convert these to the same numbered-heading + subpart format used below.
+    ocr_text = re.sub(
+        r"(?<!\w)(\d{1,2})\s*\(([ab])\)",
+        lambda match: f"\nQ{match.group(1)}.\n{match.group(2)}.",
+        ocr_text,
+        flags=re.IGNORECASE,
+    )
+    # OCR commonly reads the first heading "Q1." as "Qu.".
+    ocr_text = re.sub(r"(?im)^\s*Qu\s*[.]", "Q1.", ocr_text)
+
+    for line in ocr_text.splitlines():
+        line = re.sub(r"^\s*[.:;]+\s*", "", line)
+        # Normalize common OCR punctuation around numbered headings.
+        line = re.sub(r"(?i)^Q\s*(\d{1,3})\s*[,)]", r"Q\1.", line)
+        # A bare "Q." usually denotes the next numbered question.
+        if re.match(r"(?i)^Q\s*[.,)]", line):
+            next_number = int(main_number) + 1 if main_number and str(main_number).isdigit() else 1
+            line = re.sub(r"(?i)^Q\s*[.,)]", f"Q{next_number}.", line, count=1)
+        # Ignore OCR separator lines even when punctuation is attached,
+        # for example "OR .", "OR:", or "OR ;".
+        if PAGE_MARKER.match(line) or re.fullmatch(r"(?i)\s*OR\s*[.:;,!?]*\s*", line):
+            continue
+        bare_heading = BARE_QUESTION_START.match(line)
+        if bare_heading:
+            line = f"{line.strip()}."
+        if is_november_2025_data_structure and line.strip() == "05":
+            line = "5."
+        if (
+            is_november_2025_data_structure
+            and main_number == "4"
+            and line.strip() == "3."
+        ):
+            line = "a."
+        match = QUESTION_START.match(line)
+        if match:
+            raw_number = match.group("ocr_number") or match.group("number")
+            main_question_number = (
+                "1" if raw_number.casefold() in {"i", "l"}
+                else str(int(raw_number)) if is_november_2025_data_structure
+                else raw_number
+            )
+            remainder = match.group("remainder")
+            sub_match = SUBQUESTION_START.match(remainder)
+            if (
+                main_number == main_question_number
+                and sub_match
+                and is_sub_marker(sub_match, sub_number)
+            ):
+                save()
+                sub_number, remainder = sub_parts(sub_match)
+                lines = [remainder] if remainder else []
+                continue
+
+            # Inline markers such as "3(a) ... 3(b) ..." are normalized
+            # into repeated Q3 headings. An empty repeated heading is only
+            # a boundary marker; preserve the active subpart so the next
+            # alphabetic label (b after a) can be recognized.
+            if (
+                main_number == main_question_number
+                and sub_number is not None
+                and not remainder.strip()
+            ):
+                continue
+
+            save()
+            main_number = main_question_number
+            sub_number = None
+            suppress_initial_subquestion = (
+                is_november_2025_data_structure
+                or raw_number.casefold() in {"i", "l"}
+            )
+            lines = []
+            sub_match = SUBQUESTION_START.match(remainder)
+            if sub_match and is_sub_marker(sub_match, sub_number):
+                label, sub_text = sub_parts(sub_match)
+                sub_number = label
+                remainder = sub_text
+            if remainder:
+                lines.append(remainder)
+            continue
+
+        sub_match = SUBQUESTION_START.match(line)
+        if (
+            main_number is not None
+            and sub_match
+            and is_sub_marker(sub_match, sub_number)
+        ):
+            label, remainder = sub_parts(sub_match)
+            if sub_number is not None:
+                save()
+            else:
+                prefix = " ".join(part.strip() for part in lines if part.strip())
+                if prefix and not _is_heading_metadata(prefix):
+                    remainder = f"{prefix} {remainder}".strip()
+            sub_number = label
+            lines = [remainder] if remainder else []
+        elif main_number is not None and line.strip():
+            sub_match = SUBQUESTION_START.match(line)
+            if (
+                is_november_2025_data_structure
+                and sub_match
+                and sub_number == "b"
+                and sub_parts(sub_match)[0] == "b"
+            ):
+                label, remainder = sub_parts(sub_match)
+                save()
+                sub_number = "c"
+                lines = [remainder] if remainder else []
+                continue
+            lines.append(line.strip())
+
+    save()
+    return found
+
     ocr_text = re.sub(
         r"(?<!\w)(\d{1,2})\s*\(([ab])\)",
         lambda match: f"\nQ{match.group(1)}.\n{match.group(2)}.",
