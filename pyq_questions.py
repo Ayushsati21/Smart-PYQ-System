@@ -71,14 +71,6 @@ def extract_questions(ocr_text):
             return label == "a"
         return label == chr(ord(current_sub_number) + 1)
 
-    # OCR may merge question and alternative markers into preceding text.
-    # Split only explicit Q headings, A/B labels, and OR; leave numeric
-    # expressions (for example postfix notation) untouched.
-    ocr_text = re.sub(
-        r"(?i)(?<!\w)(?=Q\s*(?:\d{1,3}|[.,])|[AB]\s*[.,)]|OR\b)",
-        "\n",
-        ocr_text,
-    )
     # Split explicit inline numbered markers before applying the general
     # heading split. The question text before the first marker may be an
     # instruction/header and must not be mistaken for a numbered question.
@@ -102,6 +94,14 @@ def extract_questions(ocr_text):
         rebuilt.append(ocr_text[cursor:])
         ocr_text = "".join(rebuilt)
 
+    # OCR may merge question and alternative markers into preceding text.
+    # Split only explicit Q headings, A/B labels, and OR; leave numeric
+    # expressions (for example postfix notation) untouched.
+    ocr_text = re.sub(
+        r"(?i)(?<!\w)(?=Q\s*(?:\d{1,3}|[.,])|[AB]\s*[.,)]|OR\b)",
+        "\n",
+        ocr_text,
+    )
     # OCR sometimes emits explicit labels like "3(a)" / "3(b)" inline.
     # Convert these to the same numbered-heading + subpart format used below.
     ocr_text = re.sub(
