@@ -98,7 +98,9 @@ def extract_questions(ocr_text):
         if re.match(r"(?i)^Q\s*[.,)]", line):
             next_number = int(main_number) + 1 if main_number and str(main_number).isdigit() else 1
             line = re.sub(r"(?i)^Q\s*[.,)]", f"Q{next_number}.", line, count=1)
-        if PAGE_MARKER.match(line) or line.strip().casefold() == "or":
+        # Ignore OCR separator lines even when punctuation is attached,
+        # for example "OR .", "OR:", or "OR ;".
+        if PAGE_MARKER.match(line) or re.fullmatch(r"(?i)\\s*OR\\s*[.:;,!?]*\\s*", line):
             continue
         bare_heading = BARE_QUESTION_START.match(line)
         if bare_heading:
@@ -130,6 +132,18 @@ def extract_questions(ocr_text):
                 sub_number, remainder = sub_parts(sub_match)
                 lines = [remainder] if remainder else []
                 continue
+
+            # Inline markers such as "3(a) ... 3(b) ..." are normalized
+            # into repeated Q3 headings. An empty repeated heading is only
+            # a boundary marker; preserve the active subpart so the next
+            # alphabetic label (b after a) can be recognized.
+            if (
+                main_number == main_question_number
+                and sub_number is not None
+                and not remainder.strip()
+            ):
+                continue
+
             save()
             main_number = main_question_number
             sub_number = None
