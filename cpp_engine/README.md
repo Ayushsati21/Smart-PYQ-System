@@ -68,3 +68,31 @@ ctest --test-dir build --output-on-failure
 ```
 
 The modules are currently reusable C++ library-style components. They are not connected to the Flask production API or production database. The search index is in-memory and is rebuilt from the supplied question collection.
+
+
+## Milestone 5 — repository, study planning, reports, and mock exams
+
+The CMake executable now compiles the modules introduced in the previous expansion:
+- File-backed question repository with escaped text persistence and duplicate prevention.
+- Recurrence-based study priority planner.
+- HTML study-plan and paper-summary report generation.
+
+A new `MockExamGenerator` module creates a reproducible randomized practice set from the parsed question corpus:
+- Optional subject, term, and exam-year filters.
+- Optional repeated-questions-only mode.
+- Fingerprint-based duplicate exclusion.
+- Configurable question count and seed for repeatable paper generation.
+
+Example:
+```cpp
+MockExamCriteria criteria;
+criteria.subject = "Data Structures";
+criteria.term = "End Term";
+criteria.questionCount = 20;
+criteria.repeatedQuestionsOnly = false;
+criteria.seed = 42;
+
+MockExam exam = MockExamGenerator{}.generate(allQuestions, criteria);
+```
+
+These remain standalone C++ modules. They do not connect to or modify the Flask production application, live database, OCR upload flow, or deployment.
