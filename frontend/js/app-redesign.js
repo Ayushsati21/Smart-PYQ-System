@@ -22,49 +22,109 @@
     const unique = values => [...new Set(values.filter(value => value !== null && value !== undefined && String(value).trim()).map(String))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
     const folder = (name, meta='') => `<button class="folder-card" type="button" data-folder="${escapeHtml(name)}"><span class="folder-art">📁</span><strong>${escapeHtml(name)}</strong>${meta ? `<small>${escapeHtml(meta)}</small>` : ''}<span class="folder-open">Open folder →</span></button>`;
     function render() {
-      const subset = papers.filter(p => (!selected.course || p.course === selected.course) && (!selected.year || String(p.examYear) === selected.year) && (!selected.subject || p.subject === selected.subject) && (!selected.term || p.term === selected.term));
-      const titles = {course:'Choose your course',year:selected.course,subject:`Academic year ${selected.year}`,term:selected.subject,papers:`${selected.subject} · ${selected.term}`};
+      const subset = papers.filter(p =>
+        (!selected.course || p.course === selected.course) &&
+        (!selected.academicYear || String(p.academicYear) === selected.academicYear) &&
+        (!selected.examYear || String(p.examYear) === selected.examYear) &&
+        (!selected.subject || p.subject === selected.subject) &&
+        (!selected.term || p.term === selected.term)
+      );
+      const titles = {
+        course: 'Choose your course',
+        academicYear: selected.course,
+        examYear: `Academic year: ${selected.academicYear}`,
+        subject: `Examination year: ${selected.examYear}`,
+        term: selected.subject,
+        papers: `${selected.subject} · ${selected.term}`
+      };
       $('#folder-title').textContent = titles[level] || 'Your paper folders';
-      $('#folder-description').textContent = level==='course' ? 'Select a course. More courses will appear as new papers are added.' : level==='year' ? 'Choose the examination year.' : level==='subject' ? 'Choose a subject to continue.' : level==='term' ? 'Mid-Term and End-Term are kept in separate folders.' : 'Open a paper to read, download or view it full screen.';
-      const crumbs = [{label:'Courses',key:'course'}];
-      if(selected.course) crumbs.push({label:selected.course,key:'year'});
-      if(selected.year) crumbs.push({label:selected.year,key:'subject'});
-      if(selected.subject) crumbs.push({label:selected.subject,key:'term'});
-      if(selected.term) crumbs.push({label:selected.term,key:'papers'});
-      $('#folder-breadcrumbs').innerHTML = crumbs.map((x,i)=>`<button type="button" data-level="${x.key}" class="${i===crumbs.length-1?'current':''}">${escapeHtml(x.label)}</button>`).join('<span>›</span>');
-      $('#folder-back').classList.toggle('hidden',level==='course');
-      let names=[];
-      if(level==='course') names=unique(papers.map(p=>p.course));
-      if(level==='year') names=unique(subset.map(p=>p.examYear));
-      if(level==='subject') names=unique(subset.map(p=>p.subject));
-      if(level==='term') names=unique(subset.map(p=>p.term));
-      if(level!=='papers') {
-        grid.innerHTML=names.length?names.map(name=>folder(name, level==='course' ? `${papers.filter(p=>p.course===name).length} papers` : '')).join(''):'<div class="state"><h3>No folders yet</h3><p>There are no papers at this level.</p></div>';
+      $('#folder-description').textContent =
+        level === 'course' ? 'Select a course to explore its academic years.' :
+        level === 'academicYear' ? 'Choose the academic year (year of study).' :
+        level === 'examYear' ? 'Choose the year in which the examination was conducted.' :
+        level === 'subject' ? 'Choose a subject to continue.' :
+        level === 'term' ? 'Choose Mid-Term or End-Term papers.' :
+        'Open a paper to read, download or view it full screen.';
+
+      const crumbs = [{label:'Courses', key:'course'}];
+      if (selected.course) crumbs.push({label:selected.course, key:'academicYear'});
+      if (selected.academicYear) crumbs.push({label:selected.academicYear, key:'examYear'});
+      if (selected.examYear) crumbs.push({label:selected.examYear, key:'subject'});
+      if (selected.subject) crumbs.push({label:selected.subject, key:'term'});
+      if (selected.term) crumbs.push({label:selected.term, key:'papers'});
+      $('#folder-breadcrumbs').innerHTML = crumbs.map((x,i) =>
+        `<button type="button" data-level="${x.key}" class="${i===crumbs.length-1?'current':''}">${escapeHtml(x.label)}</button>`
+      ).join('<span>›</span>');
+      $('#folder-back').classList.toggle('hidden', level === 'course');
+
+      let names = [];
+      if (level === 'course') names = unique(papers.map(p => p.course));
+      if (level === 'academicYear') names = unique(subset.map(p => p.academicYear));
+      if (level === 'examYear') names = unique(subset.map(p => p.examYear));
+      if (level === 'subject') names = unique(subset.map(p => p.subject));
+      if (level === 'term') names = unique(subset.map(p => p.term));
+
+      if (level !== 'papers') {
+        grid.innerHTML = names.length
+          ? names.map(name => folder(name, level === 'course' ? `${papers.filter(p => p.course === name).length} papers` : '')).join('')
+          : '<div class="state"><h3>No folders yet</h3><p>There are no papers at this level.</p></div>';
       } else {
-        grid.innerHTML=subset.length?subset.map(p=>`<a class="folder-card paper-folder" href="paper-details.html?id=${encodeURIComponent(p.id)}"><span class="folder-art pdf-art">PDF</span><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.examYear)} · ${escapeHtml(p.term)}</small><span class="folder-open">Open paper →</span></a>`).join(''):'<div class="state">No papers in this folder.</div>';
+        grid.innerHTML = subset.length
+          ? subset.map(p => `<a class="folder-card paper-folder" href="paper-details.html?id=${encodeURIComponent(p.id)}"><span class="folder-art pdf-art">PDF</span><strong>${escapeHtml(p.name)}</strong><small>${escapeHtml(p.examYear)} · ${escapeHtml(p.term)}</small><span class="folder-open">Open paper →</span></a>`).join('')
+          : '<div class="state">No papers in this folder.</div>';
       }
     }
     function go(next, value) {
-      if(next==='course') selected={course:value};
-      if(next==='year') selected={...selected,year:value}; 
-      if(next==='subject') selected={...selected,subject:value};
-      if(next==='term') selected={...selected,term:value};
-      level=next==='course'?'year':next==='year'?'subject':next==='subject'?'term':'papers';
+      if (next === 'course') selected = {course:value};
+      if (next === 'academicYear') selected = {...selected, academicYear:value};
+      if (next === 'examYear') selected = {...selected, examYear:value};
+      if (next === 'subject') selected = {...selected, subject:value};
+      if (next === 'term') selected = {...selected, term:value};
+      level = next === 'course' ? 'academicYear' :
+        next === 'academicYear' ? 'examYear' :
+        next === 'examYear' ? 'subject' :
+        next === 'subject' ? 'term' : 'papers';
       render();
     }
     try {
-      const [summary, data]=await Promise.all([window.PYQApi.getDashboardSummary(),window.PYQApi.listPapers()]);
-      papers=data;
-      stats.innerHTML=[['Total Papers',summary.total_papers,'cyan','▤'],['Total Questions',summary.total_questions,'violet','☷']].map(x=>`<div class="stat-card"><span class="icon-box ${x[2]}">${x[3]}</span><div><p>${x[0]}</p><strong>${x[1]}</strong></div></div>`).join('');
-      $('#dashboard-status').textContent='Your previous year question papers, organised by course.';
+      const [summary, data] = await Promise.all([
+        window.PYQApi.getDashboardSummary(),
+        window.PYQApi.listPapers()
+      ]);
+      papers = data;
+      stats.innerHTML = [
+        ['Total Papers', summary.total_papers, 'cyan', '▤'],
+        ['Total Questions', summary.total_questions, 'violet', '☷']
+      ].map(x => `<div class="stat-card"><span class="icon-box ${x[2]}">${x[3]}</span><div><p>${x[0]}</p><strong>${x[1]}</strong></div></div>`).join('');
+      $('#dashboard-status').textContent = 'Your previous year question papers, organised by course and academic year.';
       render();
-      grid.addEventListener('click',event=>{const card=event.target.closest('[data-folder]');if(!card)return;go(level,card.dataset.folder);});
-      $('#folder-breadcrumbs').addEventListener('click',event=>{const button=event.target.closest('[data-level]');if(!button)return;const target=button.dataset.level; if(target==='course'){selected={};level='course';} else if(target==='year'){selected={course:selected.course};level='year';} else if(target==='subject'){selected={course:selected.course,year:selected.year};level='subject';} else if(target==='term'){selected={course:selected.course,year:selected.year,subject:selected.subject};level='term';}render();});
-      $('#folder-back').onclick=()=>{if(level==='papers'){delete selected.term;level='term';}else if(level==='term'){delete selected.subject;level='subject';}else if(level==='subject'){delete selected.year;level='year';}else if(level==='year'){selected={};level='course';}render();};
-    } catch(error) {
-      stats.innerHTML='<div class="state">Unable to load dashboard statistics.</div>';
-      grid.innerHTML='<div class="state"><h3>Library unavailable</h3><p>Check the connection to the Flask API.</p></div>';
-      showToast(error.message||'Unable to load dashboard');
+      grid.addEventListener('click', event => {
+        const card = event.target.closest('[data-folder]');
+        if (card) go(level, card.dataset.folder);
+      });
+      $('#folder-breadcrumbs').addEventListener('click', event => {
+        const button = event.target.closest('[data-level]');
+        if (!button) return;
+        const target = button.dataset.level;
+        if (target === 'course') { selected = {}; level = 'course'; }
+        else if (target === 'academicYear') { selected = {course:selected.course}; level = 'academicYear'; }
+        else if (target === 'examYear') { selected = {course:selected.course, academicYear:selected.academicYear}; level = 'examYear'; }
+        else if (target === 'subject') { selected = {course:selected.course, academicYear:selected.academicYear, examYear:selected.examYear}; level = 'subject'; }
+        else if (target === 'term') { selected = {course:selected.course, academicYear:selected.academicYear, examYear:selected.examYear, subject:selected.subject}; level = 'term'; }
+        render();
+      });
+      $('#folder-back').onclick = () => {
+        if (level === 'papers') { delete selected.term; level = 'term'; }
+        else if (level === 'term') { delete selected.subject; level = 'subject'; }
+        else if (level === 'subject') { delete selected.examYear; level = 'examYear'; }
+        else if (level === 'examYear') { delete selected.academicYear; level = 'academicYear'; }
+        else if (level === 'academicYear') { selected = {}; level = 'course'; }
+        render();
+      };
+    } catch (error) {
+      stats.innerHTML = '<div class="state">Unable to load dashboard statistics.</div>';
+      grid.innerHTML = '<div class="state"><h3>Library unavailable</h3><p>Check the connection to the Flask API.</p></div>';
+      showToast(error.message || 'Unable to load dashboard');
     }
   }
   async function initExplore() { const status = $('.table-card .section-heading .muted'); let papers; try { papers = await window.PYQApi.listPapers(); if (status) status.textContent = 'Live records loaded from the Flask API.'; } catch (error) { if (status) status.textContent = 'Unable to load papers from the API.'; showToast(error.message); return; } if (!isAdmin) document.querySelector('a[href="upload.html"]')?.remove(); const render = () => { const query = ($('#paper-search').value || '').toLowerCase(); const filters = { subject: $('#subject-filter').value, academicYear: $('#academic-filter').value, semester: $('#semester-filter').value, examYear: $('#exam-year-filter').value, term: $('#term-filter').value }; const shown = papers.filter(p => (!query || `${p.name} ${p.filename} ${p.subject}`.toLowerCase().includes(query)) && Object.entries(filters).every(([key, value]) => !value || String(p[key]) === value)); $('#paper-count').textContent = shown.length; $('#papers-table').innerHTML = shown.map(p => `<tr><td>${paperPill(p)}</td><td>${escapeHtml(p.subject || 'Not provided')}</td><td>${escapeHtml(p.academicYear)}<small class="table-sub">${escapeHtml(p.semester)}</small></td><td>${escapeHtml(p.examYear)}</td><td>${typePill(p.term)}</td><td>${escapeHtml(p.questions)}</td><td><a class="table-action" href="paper-details.html?id=${encodeURIComponent(p.id)}">View</a>${isAdmin ? ` <button type="button" class="table-action delete-action" data-paper-id="${escapeHtml(p.id)}">Delete</button>` : ''}</td></tr>`).join(''); $('#papers-empty').classList.toggle('hidden', shown.length > 0); }; populateSelect('#subject-filter', papers.map(p => p.subject)); populateSelect('#academic-filter', papers.map(p => p.academicYear)); populateSelect('#exam-year-filter', papers.map(p => p.examYear)); populateSelect('#semester-filter', papers.map(p => p.semester)); populateSelect('#term-filter', papers.map(p => p.term)); ['#paper-search', '#subject-filter', '#academic-filter', '#semester-filter', '#exam-year-filter', '#term-filter'].forEach(id => $(id).addEventListener('input', render)); $('#clear-filters').onclick = () => { ['#paper-search', '#subject-filter', '#academic-filter', '#semester-filter', '#exam-year-filter', '#term-filter'].forEach(id => $(id).value = ''); render(); }; $('#papers-table').addEventListener('click', async event => {
