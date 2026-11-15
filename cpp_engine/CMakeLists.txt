@@ -18,6 +18,7 @@ add_executable(smart_pyq_cpp
     src/StudyPlanner.cpp
     src/QuestionReport.cpp
     src/MockExamGenerator.cpp
+    src/AdvancedQuestionEngine.cpp
 )
 target_include_directories(smart_pyq_cpp PRIVATE include)
 
