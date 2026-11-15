@@ -1,0 +1,7 @@
+1. Explain the following:
+(a) Stack operations
+(i) Push operation
+(ii) Pop operation
+(b) Queue operations
+(i) Enqueue operation
+(ii) Dequeue operation
