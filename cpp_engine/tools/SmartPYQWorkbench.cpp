@@ -643,6 +643,82 @@ public:
 };
 } // namespace study_support
 
+
+/* Lightweight post-OCR cleanup helpers for experimenting with extracted text.
+ * Conservative utilities only; these do not replace the production OCR parser. */
+namespace ocr_text {
+struct Line { std::size_t page=0,line=0; std::string text; };
+struct QuestionBoundary { std::size_t lineIndex=0; std::string label; int depth=0; };
+static std::string collapseWhitespace(const std::string& s) {
+ std::string out; bool pending=false;
+ for(unsigned char c:s) { if(std::isspace(c)){if(!out.empty())pending=true;}
+  else {if(pending)out+=' ';out+=char(c);pending=false;} }
+ return out;
+}
+static bool mostlyPunctuation(const std::string& s) {
+ std::size_t visible=0,alpha=0;
+ for(unsigned char c:s){if(!std::isspace(c))++visible;if(std::isalnum(c))++alpha;}
+ return visible>0&&alpha*4<visible;
+}
+static std::string repairCommonOcrNoise(const std::string& input) {
+ std::string out=input;
+ for(std::size_t i=1;i+1<out.size();++i)
+  if(out[i]=='|'&&std::isdigit((unsigned char)out[i-1])&&std::isdigit((unsigned char)out[i+1]))out[i]='1';
+ return collapseWhitespace(out);
+}
+static int markerDepth(const std::string& label) {
+ if(label.size()>1&&std::isdigit((unsigned char)label[0])&&label[1]=='.')return 1;
+ if(label.size()>2&&label.front()=='('&&label.back()==')')return 2;
+ return 0;
+}
+static std::vector<QuestionBoundary> detectQuestionBoundaries(const std::vector<Line>& lines) {
+ std::vector<QuestionBoundary> result;
+ const std::array<std::string,5> prefixes={"Q.","Q)","Q:","Question","Que."};
+ for(std::size_t i=0;i<lines.size();++i){
+  std::string s=collapseWhitespace(lines[i].text);if(s.empty())continue;
+  if(s.front()=='('){auto close=s.find(')');
+   if(close!=std::string::npos&&close<=4){std::string label=s.substr(0,close+1);
+    int depth=markerDepth(label);if(depth)result.push_back({i,label,depth});}}
+  std::size_t p=0;while(p<s.size()&&std::isdigit((unsigned char)s[p]))++p;
+  if(p>0&&p<s.size()&&(s[p]=='.'||s[p]==')')){result.push_back({i,s.substr(0,p+1),1});continue;}
+  for(const auto&prefix:prefixes)if(s.compare(0,prefix.size(),prefix)==0){
+   std::size_t n=prefix.size();while(n<s.size()&&std::isspace((unsigned char)s[n]))++n;
+   std::size_t end=n;while(end<s.size()&&std::isdigit((unsigned char)s[end]))++end;
+   if(end>n)result.push_back({i,s.substr(n,end-n),1});break;
+  }
+ }
+ std::stable_sort(result.begin(),result.end(),[](const auto&a,const auto&b){return a.lineIndex<b.lineIndex;});
+ result.erase(std::unique(result.begin(),result.end(),[](const auto&a,const auto&b){
+  return a.lineIndex==b.lineIndex&&a.label==b.label;}),result.end());
+ return result;
+}
+static std::vector<Line> removeNoiseLines(const std::vector<Line>& lines) {
+ std::vector<Line> out;
+ for(auto line:lines){line.text=repairCommonOcrNoise(line.text);
+  if(!line.text.empty()&&!mostlyPunctuation(line.text))out.push_back(std::move(line));}
+ return out;
+}
+static std::vector<std::string> splitAtDetectedQuestions(const std::vector<Line>& lines) {
+ auto boundaries=detectQuestionBoundaries(lines);std::vector<std::string> out;
+ for(std::size_t i=0;i<boundaries.size();++i){
+  std::size_t begin=boundaries[i].lineIndex;
+  std::size_t end=i+1<boundaries.size()?boundaries[i+1].lineIndex:lines.size();
+  std::ostringstream text;
+  for(std::size_t j=begin;j<end;++j){if(j>begin)text<<' ';text<<collapseWhitespace(lines[j].text);}
+  out.push_back(text.str());
+ }return out;
+}
+static std::vector<Line> makeLines(const std::vector<std::string>& pages) {
+ std::vector<Line> out;
+ for(std::size_t p=0;p<pages.size();++p){std::istringstream in(pages[p]);std::string line;std::size_t n=0;
+  while(std::getline(in,line)){++n;out.push_back({p+1,n,line});}}
+ return out;
+}
+static std::map<std::size_t,std::size_t> pageLineCounts(const std::vector<Line>& lines) {
+ std::map<std::size_t,std::size_t> counts;for(const auto&line:lines)++counts[line.page];return counts;
+}
+} // namespace ocr_text
+
 } // namespace smartpyq
 
 int main(int argc,char**argv){
