@@ -100,7 +100,7 @@ def extract_questions(ocr_text):
             line = re.sub(r"(?i)^Q\s*[.,)]", f"Q{next_number}.", line, count=1)
         # Ignore OCR separator lines even when punctuation is attached,
         # for example "OR .", "OR:", or "OR ;".
-        if PAGE_MARKER.match(line) or re.fullmatch(r"(?i)\\s*OR\\s*[.:;,!?]*\\s*", line):
+        if PAGE_MARKER.match(line) or re.fullmatch(r"(?i)\s*OR\s*[.:;,!?]*\s*", line):
             continue
         bare_heading = BARE_QUESTION_START.match(line)
         if bare_heading:
