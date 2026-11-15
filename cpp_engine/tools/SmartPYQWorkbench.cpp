@@ -719,6 +719,48 @@ static std::map<std::size_t,std::size_t> pageLineCounts(const std::vector<Line>&
 }
 } // namespace ocr_text
 
+
+class TfIdfDiagnostics {
+public:
+ struct WeightedTerm { std::string term; double weight=0; std::size_t documentFrequency=0; };
+ static std::vector<WeightedTerm> topTerms(const std::vector<Question>&q,
+  std::size_t documentIndex,std::size_t limit=15){
+  if(documentIndex>=q.size())return{};
+  std::unordered_map<std::string,std::size_t>df;
+  for(const auto&doc:q){std::set<std::string>seen(doc.tokens.begin(),doc.tokens.end());
+   for(const auto&term:seen)++df[term];}
+  std::vector<WeightedTerm>out;const double n=double(q.size());
+  for(const auto&item:q[documentIndex].tf){
+   const double frequency=double(item.second);
+   const double inverse=std::log(1.0+n/(1.0+df[item.first]));
+   out.push_back({item.first,(1.0+std::log(frequency))*inverse,df[item.first]});
+  }
+  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){
+   return a.weight!=b.weight?a.weight>b.weight:a.term<b.term;});
+  if(out.size()>limit)out.resize(limit);return out;
+ }
+ static void exportDocumentTerms(const std::string&path,const std::vector<Question>&q){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write TF-IDF diagnostics");
+  out<<"paper_code,question_number,term,weight,document_frequency\\n";
+  for(std::size_t i=0;i<q.size();++i)for(const auto&t:topTerms(q,i,100))
+   out<<csv(q[i].paper.code)<<','<<csv(q[i].number)<<','<<csv(t.term)<<','
+      <<t.weight<<','<<t.documentFrequency<<'\\n';
+ }
+};
+class QuestionLengthProfiler {
+public:
+ struct Profile {std::size_t minimum=0,maximum=0,shortCount=0,longCount=0;double mean=0,median=0;};
+ static Profile calculate(const std::vector<Question>&q){
+  Profile p;if(q.empty())return p;std::vector<std::size_t>lengths;
+  for(const auto&x:q)lengths.push_back(x.tokens.size());
+  std::sort(lengths.begin(),lengths.end());p.minimum=lengths.front();p.maximum=lengths.back();
+  p.mean=double(std::accumulate(lengths.begin(),lengths.end(),std::size_t(0)))/lengths.size();
+  p.median=lengths.size()%2?double(lengths[lengths.size()/2]):
+   (double(lengths[lengths.size()/2-1])+lengths[lengths.size()/2])/2.0;
+  for(auto n:lengths){if(n<8)++p.shortCount;if(n>60)++p.longCount;}return p;
+ }
+};
+
 } // namespace smartpyq
 
 int main(int argc,char**argv){
