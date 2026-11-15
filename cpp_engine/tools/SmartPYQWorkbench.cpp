@@ -323,3 +323,140 @@ public:
   for(const auto&p:pairs)if(p.a<q.size()&&p.b<q.size())out<<csv(q[p.a].paper.code)<<','<<csv(q[p.a].number)<<','<<csv(q[p.b].paper.code)<<','<<csv(q[p.b].number)<<','<<p.cosine<<','<<p.jaccard<<','<<p.edit<<','<<p.score<<'\n';
  }
 };
+
+class TrendAnalyzer {
+public:
+ struct Trend { std::string term; std::map<std::string,std::size_t> counts; std::size_t total=0; };
+ static std::vector<Trend> analyze(const std::vector<Question>&q,std::size_t minimum=2){
+  std::map<std::string,Trend> trends;
+  for(const auto&x:q){std::set<std::string>seen(x.tokens.begin(),x.tokens.end());
+   for(const auto&t:seen){auto&v=trends[t];v.term=t;++v.counts[x.paper.year];++v.total;}}
+  std::vector<Trend>out;for(auto&x:trends)if(x.second.total>=minimum)out.push_back(std::move(x.second));
+  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.total!=b.total?a.total>b.total:a.term<b.term;});return out;
+ }
+ static double growth(const Trend&t,const std::string&early,const std::string&late){
+  auto a=t.counts.find(early),b=t.counts.find(late);double x=a==t.counts.end()?0:a->second,y=b==t.counts.end()?0:b->second;
+  return x==0?(y>0?1.0:0.0):(y-x)/x;
+ }
+};
+class SubjectCoverage {
+public:
+ struct Coverage { std::string subject; std::size_t papers=0,questions=0,years=0; double averagePerPaper=0; };
+ static std::vector<Coverage> summarize(const std::vector<Question>&q){
+  struct Acc {std::set<std::string>papers,years;std::size_t questions=0;};
+  std::map<std::string,Acc>data;
+  for(const auto&x:q){auto&v=data[x.paper.subject];v.papers.insert(x.paper.code);v.years.insert(x.paper.year);++v.questions;}
+  std::vector<Coverage>out;for(const auto&x:data){Coverage c;c.subject=x.first;c.papers=x.second.papers.size();c.years=x.second.years.size();c.questions=x.second.questions;c.averagePerPaper=c.papers?double(c.questions)/c.papers:0;out.push_back(c);}
+  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.questions>b.questions;});return out;
+ }
+};
+class PaperComparator {
+public:
+ struct Difference { std::string paperA,paperB;std::size_t sharedTerms=0,uniqueA=0,uniqueB=0;double overlap=0; };
+ static std::vector<Difference> compare(const std::vector<Question>&q){
+  std::map<std::string,std::unordered_set<std::string>> vocab;
+  for(const auto&x:q)for(const auto&t:x.tokens)vocab[x.paper.code].insert(t);
+  std::vector<Difference>out;
+  for(auto a=vocab.begin();a!=vocab.end();++a)for(auto b=std::next(a);b!=vocab.end();++b){
+   std::size_t shared=0;for(const auto&t:a->second)if(b->second.count(t))++shared;
+   std::size_t uni=a->second.size()+b->second.size()-shared;
+   Difference d;d.paperA=a->first;d.paperB=b->first;d.sharedTerms=shared;d.uniqueA=a->second.size()-shared;d.uniqueB=b->second.size()-shared;d.overlap=uni?double(shared)/uni:0;out.push_back(d);
+  }
+  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.overlap>b.overlap;});return out;
+ }
+};
+class FrequencyReport {
+public:
+ static std::map<std::string,std::size_t> exactGroups(const std::vector<Question>&q){
+  std::map<std::string,std::size_t>groups;for(const auto&x:q)++groups[canonical(x.text)];return groups;
+ }
+ static double exactRepeatRate(const std::vector<Question>&q){
+  if(q.empty())return 0;auto groups=exactGroups(q);std::size_t repeated=0;
+  for(const auto&g:groups)if(g.second>1)repeated+=g.second;
+  return double(repeated)/q.size();
+ }
+ static std::size_t uniqueQuestionCount(const std::vector<Question>&q){
+  return exactGroups(q).size();
+ }
+};
+class SearchExplanation {
+public:
+ static std::vector<std::string> explain(const SearchHit&hit,const std::vector<Question>&q){
+  std::vector<std::string>out;if(hit.index>=q.size())return out;
+  out.push_back("Question "+q[hit.index].number+" from "+q[hit.index].paper.code);
+  out.push_back("BM25-style relevance score: "+std::to_string(hit.score));
+  std::ostringstream terms;terms<<"Matched query terms: ";
+  for(std::size_t i=0;i<hit.terms.size();++i){if(i)terms<<", ";terms<<hit.terms[i];}
+  out.push_back(terms.str());out.push_back("Ranking combines inverse document frequency, term frequency, document length, and query coverage.");return out;
+ }
+};
+void printUsage(const char*exe){
+ std::cout<<"Smart PYQ Workbench (C++17)\n"
+ <<"Usage: "<<exe<<" <questions.tsv> [report.html] [--csv]\n"
+ <<"Input columns: paper_code, subject, exam_year, term, question_number, question_text\n"
+ <<"Use tabs between columns; escape embedded tabs as \\t.\n";
+}
+int runWorkbench(const std::string&path,const std::string&report,bool csvMode){
+ Corpus corpus;corpus.load(path,csvMode);const auto&q=corpus.questions;
+ if(q.empty()){std::cerr<<"No questions were loaded.\n";return 2;}
+ Metrics metrics(q);SearchIndex index;index.build(q);
+ auto pairs=Similarity::find(q,.70,100);auto difficulty=DifficultyEstimator::estimate(q);
+ auto priorities=RepetitionPlanner::rank(q);auto warnings=QualityAudit::inspect(q);
+ std::cout<<"Questions: "<<q.size()<<"\nTokens: "<<metrics.tokens()
+ <<"\nVocabulary: "<<metrics.vocabulary()<<"\nAverage length: "<<metrics.averageLength()<<"\n";
+ std::cout<<"Exact unique questions: "<<FrequencyReport::uniqueQuestionCount(q)
+ <<"\nExact repeat rate: "<<FrequencyReport::exactRepeatRate(q)<<"\n";
+ std::cout<<"\nSubject distribution:\n";
+ for(const auto&x:metrics.bySubject())std::cout<<"  "<<x.first<<": "<<x.second<<"\n";
+ std::cout<<"\nYear distribution:\n";
+ for(const auto&x:metrics.byYear())std::cout<<"  "<<x.first<<": "<<x.second<<"\n";
+ std::cout<<"\nFrequent terms:\n";
+ for(const auto&x:metrics.topTerms(12))std::cout<<"  "<<x.first<<": "<<x.second<<"\n";
+ std::cout<<"\nHigh-priority questions:\n";
+ for(std::size_t i=0;i<std::min<std::size_t>(10,priorities.size());++i){
+  const auto&p=priorities[i];const auto&x=q[p.index];
+  std::cout<<"  "<<x.paper.code<<"/"<<x.number<<" appearances="<<p.occurrences
+   <<" years="<<p.years<<" papers="<<p.papers<<" "<<x.text.substr(0,100)<<"\n";
+ }
+ std::cout<<"\nSimilar pairs: "<<pairs.size()<<"\n";
+ for(std::size_t i=0;i<std::min<std::size_t>(10,pairs.size());++i){
+  const auto&p=pairs[i];std::cout<<"  "<<q[p.a].paper.code<<"/"<<q[p.a].number
+   <<" <-> "<<q[p.b].paper.code<<"/"<<q[p.b].number<<" score="<<p.score<<"\n";
+ }
+ std::map<std::string,std::size_t>bands;for(const auto&d:difficulty)++bands[d.band];
+ std::cout<<"\nDifficulty distribution:\n";for(const auto&x:bands)std::cout<<"  "<<x.first<<": "<<x.second<<"\n";
+ std::cout<<"\nQuality warnings: "<<warnings.size()<<"\n";
+ for(std::size_t i=0;i<std::min<std::size_t>(12,warnings.size());++i)std::cout<<"  - "<<warnings[i]<<"\n";
+ auto hits=index.search("data structure algorithm");
+ std::cout<<"\nExample ranked search:\n";
+ for(const auto&hit:hits){const auto&x=q[hit.index];std::cout<<"  ["<<hit.score<<"] "<<x.number<<": "<<x.text.substr(0,100)<<"\n";}
+ std::cout<<"\nSuggested related terms:\n";
+ for(const auto&t:QueryExpander::suggest(q,"data structure algorithm"))std::cout<<"  "<<t<<"\n";
+ auto blueprint=MockExamBuilder::create(q,difficulty,"",10,2026,true);
+ std::cout<<"\nSample mock exam: "<<blueprint.indices.size()<<" questions (easy "
+ <<blueprint.easy<<", medium "<<blueprint.medium<<", hard "<<blueprint.hard<<")\n";
+ std::cout<<"\nSubject coverage:\n";
+ for(const auto&x:SubjectCoverage::summarize(q))std::cout<<"  "<<x.subject<<": "<<x.questions
+ <<" questions across "<<x.papers<<" papers and "<<x.years<<" years\n";
+ auto trends=TrendAnalyzer::analyze(q,2);
+ std::cout<<"\nRecurring topic terms: "<<trends.size()<<"\n";
+ for(std::size_t i=0;i<std::min<std::size_t>(10,trends.size());++i)
+  std::cout<<"  "<<trends[i].term<<": "<<trends[i].total<<" occurrences\n";
+ auto comparisons=PaperComparator::compare(q);
+ std::cout<<"\nPaper vocabulary comparisons: "<<comparisons.size()<<"\n";
+ for(std::size_t i=0;i<std::min<std::size_t>(8,comparisons.size());++i)
+  std::cout<<"  "<<comparisons[i].paperA<<" vs "<<comparisons[i].paperB
+   <<" overlap="<<comparisons[i].overlap<<"\n";
+ if(!report.empty()){ReportWriter::htmlReport(report,q,pairs,difficulty,metrics);std::cout<<"HTML report written: "<<report<<"\n";}
+ return 0;
+}
+} // namespace smartpyq
+
+int main(int argc,char**argv){
+ if(argc<2||std::string(argv[1])=="--help"){smartpyq::printUsage(argv[0]);return argc<2?1:0;}
+ try{
+  std::string path=argv[1],report;bool csvMode=false;
+  for(int i=2;i<argc;++i){std::string arg=argv[i];if(arg=="--csv")csvMode=true;else report=arg;}
+  return smartpyq::runWorkbench(path,report,csvMode);
+ }catch(const std::exception&e){std::cerr<<"Error: "<<e.what()<<"\n";return 2;}
+}
