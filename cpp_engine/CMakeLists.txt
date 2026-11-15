@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.16)
+project(SmartPYQCppEngine LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+add_executable(smart_pyq_cpp src/main.cpp src/TextNormalizer.cpp src/QuestionParser.cpp src/FrequencyAnalyzer.cpp src/SimilarityEngine.cpp src/SHA256.cpp src/Metadata.cpp)
+target_include_directories(smart_pyq_cpp PRIVATE include)
