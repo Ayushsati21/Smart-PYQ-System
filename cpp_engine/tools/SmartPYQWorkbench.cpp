@@ -194,3 +194,132 @@ public:
   if(out.size()>limit)out.resize(limit);return out;
  }
 };
+
+class DifficultyEstimator {
+ static std::size_t syllables(const std::string&w){
+  std::size_t n=0;bool previous=false;
+  for(unsigned char raw:w){char c=char(std::tolower(raw));bool vowel=c=='a'||c=='e'||c=='i'||c=='o'||c=='u';if(vowel&&!previous)++n;previous=vowel;}
+  if(!n&&!w.empty())n=1;if(w.size()>3&&w.back()=='e'&&n>1)--n;return n;
+ }
+public:
+ static std::vector<Difficulty> estimate(const std::vector<Question>&q){
+  std::vector<Difficulty> out;const std::array<std::string,20> cues={
+   "derive","prove","calculate","compute","algorithm","complexity","recurrence",
+   "integral","differentiate","matrix","equation","theorem","optimize","evaluate",
+   "justify","compare","design","analyze","implement","demonstrate"};
+  for(std::size_t i=0;i<q.size();++i){Difficulty d;d.index=i;const auto&x=q[i];
+   if(x.tokens.empty()){d.band="Unknown";out.push_back(d);continue;}
+   std::size_t longWords=0,totalSyllables=0;
+   for(const auto&t:x.tokens){if(t.size()>=9)++longWords;totalSyllables+=syllables(t);}
+   d.vocabulary=clamp((double(totalSyllables)/x.tokens.size()-1.0)/2.8);
+   d.length=clamp(std::log1p(double(x.tokens.size()))/5.0);
+   d.reasoning=clamp(.65*d.vocabulary+.35*double(longWords)/x.tokens.size());
+   auto text=lower(x.text);
+   for(const auto&cue:cues)if(text.find(cue)!=std::string::npos)d.signals.push_back(cue);
+   std::size_t operators=0;for(char c:x.text)if(c=='='||c=='+'||c=='/'||c=='^'||c=='*')++operators;
+   d.formula=clamp(.10*d.signals.size()+.025*operators);
+   d.score=clamp(.30*d.vocabulary+.25*d.length+.25*d.reasoning+.20*d.formula);
+   d.band=d.score<.34?"Easy":d.score<.67?"Medium":"Hard";out.push_back(std::move(d));
+  }return out;
+ }
+};
+class RepetitionPlanner {
+public:
+ static std::vector<Priority> rank(const std::vector<Question>&q){
+  std::unordered_map<std::string,std::vector<std::size_t>>groups;
+  for(std::size_t i=0;i<q.size();++i)groups[canonical(q[i].text)].push_back(i);
+  std::vector<Priority> out;
+  for(std::size_t i=0;i<q.size();++i){const auto&members=groups[canonical(q[i].text)];std::set<std::string>years,papers;
+   for(auto j:members){years.insert(q[j].paper.year);papers.insert(q[j].paper.code);}
+   double score=.55*std::log1p(double(members.size()))+.30*years.size()+.15*papers.size();
+   out.push_back({i,members.size(),years.size(),papers.size(),score});}
+  std::stable_sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.score!=b.score?a.score>b.score:a.index<b.index;});return out;
+ }
+};
+class MockExamBuilder {
+public:
+ static MockPaper create(const std::vector<Question>&q,const std::vector<Difficulty>&d,
+                         const std::string&subject,std::size_t count,std::uint32_t seed,bool balanced=true){
+  MockPaper result;std::vector<std::size_t>candidates;
+  for(std::size_t i=0;i<q.size();++i)if(subject.empty()||lower(q[i].paper.subject)==lower(subject))candidates.push_back(i);
+  std::uint32_t state=seed?seed:0x9e3779b9u;
+  auto random=[&](){state^=state<<13;state^=state>>17;state^=state<<5;return state;};
+  for(std::size_t i=candidates.size();i>1;--i)std::swap(candidates[i-1],candidates[random()%i]);
+  if(!balanced){for(auto i:candidates){if(result.indices.size()>=count)break;result.indices.push_back(i);}}
+  else{
+   std::array<std::pair<std::string,std::size_t>,3>targets={{{"Easy",count/3},{"Medium",count-count/3-count/3},{"Hard",count/3}}};
+   for(const auto&t:targets){std::size_t added=0;for(auto i:candidates){if(added>=t.second)break;
+    if(std::find(result.indices.begin(),result.indices.end(),i)!=result.indices.end())continue;
+    if(d[i].band==t.first){result.indices.push_back(i);++added;}}}
+   for(auto i:candidates){if(result.indices.size()>=count)break;if(std::find(result.indices.begin(),result.indices.end(),i)==result.indices.end())result.indices.push_back(i);}
+  }
+  if(result.indices.size()>count)result.indices.resize(count);
+  for(auto i:result.indices){if(d[i].band=="Easy")++result.easy;else if(d[i].band=="Medium")++result.medium;else if(d[i].band=="Hard")++result.hard;}
+  return result;
+ }
+};
+class DuplicateClusterer {
+public:
+ static std::vector<std::vector<std::size_t>> cluster(const std::vector<Question>&q,double threshold=.72){
+  std::vector<std::size_t>parent(q.size());std::iota(parent.begin(),parent.end(),0);
+  auto root=[&](std::size_t x){while(parent[x]!=x){parent[x]=parent[parent[x]];x=parent[x];}return x;};
+  for(std::size_t i=0;i<q.size();++i)for(std::size_t j=i+1;j<q.size();++j)
+   if(Similarity::cosine(q[i],q[j])>=threshold){auto a=root(i),b=root(j);if(a!=b)parent[b]=a;}
+  std::map<std::size_t,std::vector<std::size_t>>groups;
+  for(std::size_t i=0;i<q.size();++i)groups[root(i)].push_back(i);
+  std::vector<std::vector<std::size_t>>out;for(auto&g:groups)if(g.second.size()>1)out.push_back(std::move(g.second));
+  std::sort(out.begin(),out.end(),[](const auto&a,const auto&b){return a.size()!=b.size()?a.size()>b.size():a.front()<b.front();});return out;
+ }
+};
+class QualityAudit {
+public:
+ static std::vector<std::string> inspect(const std::vector<Question>&q){
+  std::vector<std::string>out;std::unordered_map<std::string,std::size_t>keys;
+  for(std::size_t i=0;i<q.size();++i){const auto&x=q[i];auto add=[&](const std::string&s){out.push_back("Record "+std::to_string(i+1)+": "+s);};
+   if(x.paper.code.empty())add("missing paper code");if(x.paper.subject.empty())add("missing subject");
+   if(x.paper.year.empty())add("missing exam year");if(x.number.empty())add("missing question number");
+   if(x.text.size()<8)add("very short question text");if(x.tokens.empty())add("no searchable tokens");
+   if(++keys[x.paper.code+"|"+x.number]>1)add("duplicate paper/question-number key");
+   if(x.text.find("�")!=std::string::npos)add("replacement character; inspect encoding");
+  }return out;
+ }
+};
+class QueryExpander {
+public:
+ static std::vector<std::string> suggest(const std::vector<Question>&q,const std::string&query,std::size_t limit=10){
+  auto terms=tokenize(query);std::unordered_set<std::string>known(terms.begin(),terms.end());
+  std::unordered_map<std::string,std::size_t>co;
+  for(const auto&x:q){bool related=false;for(const auto&t:x.tokens)if(known.count(t)){related=true;break;}
+   if(related)for(const auto&t:x.tokens)if(!known.count(t))++co[t];}
+  std::vector<std::pair<std::string,std::size_t>>ranked(co.begin(),co.end());
+  std::sort(ranked.begin(),ranked.end(),[](const auto&a,const auto&b){return a.second!=b.second?a.second>b.second:a.first<b.first;});
+  std::vector<std::string>out;for(const auto&x:ranked){if(out.size()>=limit)break;out.push_back(x.first);}return out;
+ }
+};
+class ReportWriter {
+public:
+ static void htmlReport(const std::string&path,const std::vector<Question>&q,
+  const std::vector<SimilarPair>&pairs,const std::vector<Difficulty>&difficulty,const Metrics&m){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write HTML report");
+  out<<"<!doctype html><html><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Smart PYQ Report</title><style>";
+  out<<"body{font:15px/1.55 system-ui,sans-serif;margin:32px;color:#20242a}table{border-collapse:collapse;width:100%;margin:16px 0}td,th{border:1px solid #d8dde5;padding:8px;text-align:left;vertical-align:top}th{background:#f2f5f8}.muted{color:#667085}</style></head><body>";
+  out<<"<h1>Smart PYQ Workbench</h1><p class=\"muted\">Offline corpus report</p><h2>Corpus</h2><ul><li>Questions: "<<q.size()<<"</li><li>Tokens: "<<m.tokens()<<"</li><li>Vocabulary: "<<m.vocabulary()<<"</li><li>Average length: "<<m.averageLength()<<"</li></ul>";
+  out<<"<h2>Subject distribution</h2><table><tr><th>Subject</th><th>Count</th></tr>";
+  for(const auto&x:m.bySubject())out<<"<tr><td>"<<html(x.first)<<"</td><td>"<<x.second<<"</td></tr>";out<<"</table>";
+  out<<"<h2>Difficulty estimates</h2><p class=\"muted\">Heuristic indicators, not validated grades.</p><table><tr><th>Paper</th><th>Number</th><th>Score</th><th>Band</th></tr>";
+  for(const auto&d:difficulty)if(d.index<q.size())out<<"<tr><td>"<<html(q[d.index].paper.code)<<"</td><td>"<<html(q[d.index].number)<<"</td><td>"<<d.score<<"</td><td>"<<d.band<<"</td></tr>";
+  out<<"</table><h2>Similar question candidates</h2><p class=\"muted\">Review these candidates manually.</p><table><tr><th>Question A</th><th>Question B</th><th>Score</th></tr>";
+  for(const auto&p:pairs)if(p.a<q.size()&&p.b<q.size())out<<"<tr><td>"<<html(q[p.a].text)<<"</td><td>"<<html(q[p.b].text)<<"</td><td>"<<p.score<<"</td></tr>";
+  out<<"</table></body></html>";
+ }
+ static void questionsCsv(const std::string&path,const std::vector<Question>&q){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write CSV");
+  out<<"paper_code,subject,year,term,number,text\n";
+  for(const auto&x:q)out<<csv(x.paper.code)<<','<<csv(x.paper.subject)<<','<<csv(x.paper.year)<<','<<csv(x.paper.term)<<','<<csv(x.number)<<','<<csv(x.text)<<'\n';
+ }
+ static void pairsCsv(const std::string&path,const std::vector<Question>&q,const std::vector<SimilarPair>&pairs){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write similarity CSV");
+  out<<"paper_a,number_a,paper_b,number_b,cosine,jaccard,edit,combined\n";
+  for(const auto&p:pairs)if(p.a<q.size()&&p.b<q.size())out<<csv(q[p.a].paper.code)<<','<<csv(q[p.a].number)<<','<<csv(q[p.b].paper.code)<<','<<csv(q[p.b].number)<<','<<p.cosine<<','<<p.jaccard<<','<<p.edit<<','<<p.score<<'\n';
+ }
+};
