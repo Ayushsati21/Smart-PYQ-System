@@ -74,7 +74,7 @@ def extract_questions(ocr_text):
     # Split explicit inline numbered markers before applying the general
     # heading split. The question text before the first marker may be an
     # instruction/header and must not be mistaken for a numbered question.
-    inline_marker = re.compile(r"(?<!\\w)(\\d{1,2})\\s*\\(([ab])\\)", re.IGNORECASE)
+    inline_marker = re.compile(r"(?<!\w)(\d{1,2})\s*\(([ab])\)", re.IGNORECASE)
     inline_matches = list(inline_marker.finditer(ocr_text))
     if inline_matches:
         rebuilt = []
@@ -88,7 +88,7 @@ def extract_questions(ocr_text):
                 rebuilt.append(prefix)
             else:
                 rebuilt.append(prefix)
-            rebuilt.append(f"\\nQ{number}.\\n{label}.")
+            rebuilt.append(f"\nQ{number}.\n{label}.")
             cursor = match.end()
             active_number = number
         rebuilt.append(ocr_text[cursor:])
