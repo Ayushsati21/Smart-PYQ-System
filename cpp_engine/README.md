@@ -45,3 +45,26 @@ Compile and run the focused parser/SHA test (exclude `src/main.cpp`):
 g++ -std=c++17 -O2 -I include tests/test_engine.cpp src/QuestionParser.cpp src/TextNormalizer.cpp src/SHA256.cpp -o test_engine.exe
 .\test_engine.exe
 ```
+
+
+## Milestone 4 — indexed search and paper analytics
+
+The engine now also contains reusable modules for:
+- In-memory inverted indexing over normalized question text.
+- BM25-style ranked keyword search with subject, academic-year, exam-year, and term filters.
+- Pagination and corpus statistics for search results.
+- Question counts by exam year and subject.
+- Recurring-question trend aggregation across exam years.
+- Exact-repeat rate calculation.
+- CSV export with quoted/escaped fields.
+- A focused search and analytics test executable.
+
+### Build and test with CMake
+
+```powershell
+cmake -S . -B build
+cmake --build build --config Release
+ctest --test-dir build --output-on-failure
+```
+
+The modules are currently reusable C++ library-style components. They are not connected to the Flask production API or production database. The search index is in-memory and is rebuilt from the supplied question collection.
