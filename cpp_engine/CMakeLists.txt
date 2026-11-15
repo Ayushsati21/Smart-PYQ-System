@@ -23,5 +23,21 @@ add_executable(test_search_analytics
     src/QuestionAnalytics.cpp
 )
 target_include_directories(test_search_analytics PRIVATE include)
+add_executable(test_engine_core
+    tests/test_engine.cpp
+    src/QuestionParser.cpp
+    src/TextNormalizer.cpp
+    src/SHA256.cpp
+)
+target_include_directories(test_engine_core PRIVATE include)
+
+add_executable(test_export
+    tests/test_export.cpp
+    src/Export.cpp
+)
+target_include_directories(test_export PRIVATE include)
+
 enable_testing()
 add_test(NAME search_analytics COMMAND test_search_analytics)
+add_test(NAME engine_core COMMAND test_engine_core)
+add_test(NAME csv_export COMMAND test_export)
