@@ -1,0 +1,36 @@
+name: C++ Engine CI
+
+on:
+  pull_request:
+    paths:
+      - "cpp_engine/**"
+      - ".github/workflows/cpp-engine-ci.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "cpp_engine/**"
+      - ".github/workflows/cpp-engine-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: cmake -S cpp_engine -B build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build C++ engine and tests
+        run: cmake --build build --config Debug --parallel
+
+      - name: Run C++ tests
+        run: ctest --test-dir build -C Debug --output-on-failure
