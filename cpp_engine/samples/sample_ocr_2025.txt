@@ -1,0 +1,7 @@
+--- PAGE 1 ---
+1. Answer the following questions.
+(a) Explain stack data structure and its operations.
+(b) Describe queue data structure and its operations.
+(c) Write an algorithm for linear search.
+2. Answer briefly.
+(a) What is a linked list?

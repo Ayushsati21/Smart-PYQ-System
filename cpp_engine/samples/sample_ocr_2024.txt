@@ -1,0 +1,9 @@
+--- PAGE 1 ---
+1. Answer the following questions.
+(a) Explain stack data structure and its operations.
+(b) Explain queue data structure and its operations.
+(c) Write an algorithm for binary search.
+2. Answer briefly.
+(a) Explain stack data structure and its operations.
+(b) What is a linked list?
+3. Explain queue data structure and its operations.
