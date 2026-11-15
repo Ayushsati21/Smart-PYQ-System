@@ -450,6 +450,199 @@ int runWorkbench(const std::string&path,const std::string&report,bool csvMode){
  if(!report.empty()){ReportWriter::htmlReport(report,q,pairs,difficulty,metrics);std::cout<<"HTML report written: "<<report<<"\n";}
  return 0;
 }
+
+/*
+ * Additional study-support utilities. These functions are intentionally
+ * independent of the command-line entry point so they can be reused when this
+ * companion is later split into library modules.
+ */
+namespace study_support {
+struct Flashcard {
+ std::string front,back,subject,source;
+ std::size_t questionIndex=0;
+};
+struct StudySession {
+ std::string subject,topic;
+ std::vector<std::size_t> questionIndices;
+ std::size_t estimatedMinutes=0;
+ double priority=0;
+};
+struct CalendarDay {
+ std::string date;
+ std::vector<StudySession> sessions;
+ std::size_t totalMinutes=0;
+};
+struct LearningObjective {
+ std::string topic;
+ std::size_t questionCount=0,distinctYears=0;
+ double recurrence=0,coverage=0,priority=0;
+};
+struct RevisionPlan {
+ std::vector<CalendarDay> days;
+ std::size_t scheduledQuestions=0,unscheduledQuestions=0;
+};
+
+static std::string shorten(const std::string&s,std::size_t n){
+ if(s.size()<=n)return s;return s.substr(0,n>3?n-3:0)+"...";
+}
+static std::string makeQuestionPrompt(const smartpyq::Question&q){
+ std::ostringstream o;o<<"Explain or solve the following question from "
+ <<q.paper.subject<<": "<<q.text;return o.str();
+}
+static std::string makeAnswerCue(const smartpyq::Question&q){
+ auto tokens=smartpyq::tokenize(q.text);std::ostringstream o;
+ o<<"Key concepts to revise: ";std::set<std::string>unique(tokens.begin(),tokens.end());
+ std::size_t count=0;for(const auto&t:unique){if(count==8)break;if(count++)o<<", ";o<<t;}
+ return o.str();
+}
+class FlashcardBuilder {
+public:
+ static std::vector<Flashcard> fromQuestions(const std::vector<smartpyq::Question>&q){
+  std::vector<Flashcard>cards;cards.reserve(q.size());
+  for(std::size_t i=0;i<q.size();++i){
+   Flashcard c;c.front=makeQuestionPrompt(q[i]);c.back=makeAnswerCue(q[i]);
+   c.subject=q[i].paper.subject;c.source=q[i].paper.code+" / "+q[i].number;c.questionIndex=i;
+   cards.push_back(std::move(c));
+  }return cards;
+ }
+ static void exportTsv(const std::string&path,const std::vector<Flashcard>&cards){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write flashcards");
+  out<<"front\tback\tsubject\tsource\n";
+  for(const auto&c:cards)out<<escape(c.front)<<'\t'<<escape(c.back)<<'\t'
+   <<escape(c.subject)<<'\t'<<escape(c.source)<<'\n';
+ }
+private:
+ static std::string escape(const std::string&s){
+  std::string out;for(char c:s){if(c=='\\')out+="\\\\";else if(c=='\t')out+="\\t";
+   else if(c=='\n')out+="\\n";else out+=c;}return out;
+ }
+};
+class ObjectiveMiner {
+public:
+ static std::vector<LearningObjective> mine(const std::vector<smartpyq::Question>&q){
+  struct Aggregate{std::size_t count=0;std::set<std::string>years,papers;};
+  std::map<std::string,Aggregate>aggregate;
+  for(const auto&question:q){
+   std::set<std::string>unique(question.tokens.begin(),question.tokens.end());
+   for(const auto&term:unique){auto&a=aggregate[term];++a.count;a.years.insert(question.paper.year);a.papers.insert(question.paper.code);}
+  }
+  std::vector<LearningObjective>result;
+  for(const auto&item:aggregate){
+   LearningObjective x;x.topic=item.first;x.questionCount=item.second.count;
+   x.distinctYears=item.second.years.size();
+   x.recurrence=std::log1p(double(x.questionCount));
+   x.coverage=double(x.distinctYears);
+   x.priority=.65*x.recurrence+.35*x.coverage;
+   result.push_back(x);
+  }
+  std::sort(result.begin(),result.end(),[](const auto&a,const auto&b){
+   return a.priority!=b.priority?a.priority>b.priority:a.topic<b.topic;
+  });return result;
+ }
+};
+class RevisionScheduler {
+public:
+ static RevisionPlan build(const std::vector<smartpyq::Question>&q,
+  const std::vector<smartpyq::Difficulty>&difficulty,
+  const std::vector<smartpyq::Priority>&priority,
+  const std::vector<std::string>&dates,std::size_t minutesPerDay=90){
+  RevisionPlan plan;std::vector<std::size_t>order;
+  for(const auto&p:priority)if(p.index<q.size())order.push_back(p.index);
+  std::set<std::size_t>scheduled;
+  std::size_t cursor=0;
+  for(const auto&date:dates){
+   CalendarDay day;day.date=date;
+   while(cursor<order.size()){
+    const std::size_t index=order[cursor];
+    const std::size_t length=q[index].tokens.size();
+    const std::size_t base=std::max<std::size_t>(8,std::min<std::size_t>(35,8+length/4));
+    const double difficultyFactor=index<difficulty.size()?1.0+difficulty[index].score:1.0;
+    const std::size_t estimate=static_cast<std::size_t>(std::ceil(base*difficultyFactor));
+    if(day.totalMinutes+estimate>minutesPerDay&&!day.sessions.empty())break;
+    StudySession session;session.subject=q[index].paper.subject;
+    session.topic=shorten(q[index].text,70);session.questionIndices.push_back(index);
+    session.estimatedMinutes=estimate;
+    session.priority=index<priority.size()?priority[index].score:0;
+    day.sessions.push_back(std::move(session));day.totalMinutes+=estimate;
+    scheduled.insert(index);++cursor;
+    if(day.totalMinutes>=minutesPerDay)break;
+   }
+   plan.days.push_back(std::move(day));
+   if(cursor>=order.size())break;
+  }
+  plan.scheduledQuestions=scheduled.size();plan.unscheduledQuestions=q.size()-scheduled.size();
+  return plan;
+ }
+};
+class RevisionPlanExporter {
+public:
+ static void markdown(const std::string&path,const RevisionPlan&plan){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write revision plan");
+  out<<"# Smart PYQ Revision Plan\n\n";
+  out<<"Scheduled questions: "<<plan.scheduledQuestions
+     <<"  |  Unscheduled: "<<plan.unscheduledQuestions<<"\n\n";
+  for(const auto&day:plan.days){
+   out<<"## "<<day.date<<" — "<<day.totalMinutes<<" minutes\n\n";
+   for(const auto&s:day.sessions){
+    out<<"- **"<<s.subject<<"** ("<<s.estimatedMinutes<<" min): "
+       <<s.topic<<"\n";
+   }out<<"\n";
+  }
+ }
+};
+class TopicCoverageMatrix {
+public:
+ static std::map<std::string,std::map<std::string,std::size_t>>
+ build(const std::vector<smartpyq::Question>&q){
+  std::map<std::string,std::map<std::string,std::size_t>>matrix;
+  for(const auto&question:q){
+   std::set<std::string>unique(question.tokens.begin(),question.tokens.end());
+   for(const auto&term:unique)++matrix[question.paper.subject][term];
+  }return matrix;
+ }
+ static void exportCsv(const std::string&path,
+  const std::map<std::string,std::map<std::string,std::size_t>>&matrix){
+  std::ofstream out(path);if(!out)throw std::runtime_error("cannot write coverage matrix");
+  out<<"subject,topic,question_count\n";
+  for(const auto&subject:matrix)for(const auto&topic:subject.second)
+   out<<smartpyq::csv(subject.first)<<','<<smartpyq::csv(topic.first)<<','
+      <<topic.second<<'\n';
+ }
+};
+class QuestionSampler {
+public:
+ static std::vector<std::size_t> stratified(const std::vector<smartpyq::Question>&q,
+  std::size_t sampleSize,std::uint32_t seed){
+  std::map<std::string,std::vector<std::size_t>>groups;
+  for(std::size_t i=0;i<q.size();++i)
+   groups[q[i].paper.subject+"|"+q[i].paper.year].push_back(i);
+  std::uint32_t state=seed?seed:0x85ebca6bu;
+  auto random=[&](){state^=state<<13;state^=state>>17;state^=state<<5;return state;};
+  std::vector<std::size_t>result;
+  bool changed=true;
+  while(result.size()<sampleSize&&changed){
+   changed=false;
+   for(auto&group:groups){
+    if(group.second.empty()||result.size()>=sampleSize)continue;
+    std::size_t pick=random()%group.second.size();
+    result.push_back(group.second[pick]);
+    group.second.erase(group.second.begin()+static_cast<std::ptrdiff_t>(pick));
+    changed=true;
+   }
+  }return result;
+ }
+};
+class StudyStatistics {
+public:
+ struct Summary {std::size_t days=0,sessions=0,minutes=0,questions=0;double averageMinutes=0;};
+ static Summary summarize(const RevisionPlan&plan){
+  Summary s;s.days=plan.days.size();s.questions=plan.scheduledQuestions;
+  for(const auto&day:plan.days){s.sessions+=day.sessions.size();s.minutes+=day.totalMinutes;}
+  s.averageMinutes=s.days?double(s.minutes)/s.days:0;return s;
+ }
+};
+} // namespace study_support
+
 } // namespace smartpyq
 
 int main(int argc,char**argv){
