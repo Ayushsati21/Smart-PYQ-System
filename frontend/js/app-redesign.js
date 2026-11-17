@@ -266,3 +266,4 @@
   async function boot() { try { const admin = await window.PYQAuth.getCurrentAdmin(); if (admin) { currentUser = { displayName: admin.username, initials: admin.username.slice(0, 2).toUpperCase(), role: 'ADMIN / CREATOR' }; isAdmin = true; } } catch (_) { if (page === 'upload') { window.location.replace('access-denied.html'); return; } } if (page === 'upload' && !isAdmin) { window.location.replace('access-denied.html'); return; } renderShell(); ({ dashboard: initDashboard, explore: initExplore, questions: initQuestions, repeated: initRepeated, upload: initUpload, details: initDetails }[page] || (() => {}))(); }
   boot();
 })();
+
