@@ -1,0 +1,164 @@
+# 📚 Smart PYQ System
+### Previous Year Questions – Smarter Preparation
+
+Smart PYQ System is an academic preparation platform designed to help students prepare more effectively for examinations by organizing Previous Year Questions (PYQs) and identifying frequently repeated questions.
+
+The system analyzes question patterns across different academic years, subjects, and terms to help students identify important topics and prioritize their preparation.
+
+## 🎯 Project Objectives
+
+- Organize Previous Year Questions in a structured manner.
+- Identify frequently repeated examination questions.
+- Analyze question frequency across different years.
+- Help students prioritize important questions.
+- Reduce manual effort in analyzing previous year papers.
+- Make exam preparation more efficient and organized.
+
+## ✨ Key Features
+
+- **Explore Papers:** Browse previous year question papers based on academic year, subject, and term.
+- **Repeated Question Analysis:** Identify questions that appear multiple times in previous examinations.
+- **Frequency Counting:** Calculate how frequently a particular question appears.
+- **Question Ranking:** Display repeated questions in descending order of their frequency.
+- **Study Assistance:** Help students focus on frequently asked questions during exam preparation.
+
+## ⚙️ How the System Works
+
+1. **Input Selection:** The user selects the academic year, subject, and term.
+2. **Question Retrieval:** The system retrieves the relevant question data.
+3. **Question Processing:** Questions are collected and prepared for comparison.
+4. **Frequency Analysis:** The system compares question text and counts how many times each question appears.
+5. **Sorting:** Questions are sorted according to their frequency.
+6. **Result Display:** Questions appearing more than once are displayed in a ranked table.
+
+## 👨‍💻 My Contribution – Member 3
+
+### Repeated Question Analysis & Study Guide
+
+My primary responsibility in this project is developing the Repeated Question Analysis module.
+
+The module analyzes Previous Year Questions and identifies questions that have appeared multiple times across different examination papers.
+
+**My responsibilities include:**
+
+- Retrieving question data based on selected academic year, subject, and term.
+- Comparing questions from different examination papers.
+- Identifying duplicate and repeated questions.
+- Counting and maintaining the frequency of each question.
+- Ranking questions according to their repetition frequency.
+- Displaying repeated questions in a structured table.
+- Helping students identify frequently asked questions for better exam preparation.
+
+### Data Structures and Algorithms Used
+
+| Concept | Purpose |
+|---|---|
+| Hash Map (`unordered_map`) | Stores questions and their frequencies |
+| Vector | Stores question-frequency pairs |
+| Sorting | Ranks questions by frequency |
+| Strings | Stores and compares question text |
+| OOP (`RepeatedQuestion`) | Organizes question-related data |
+
+### Algorithm Complexity
+
+Let:
+- `N` = Total number of questions.
+- `U` = Number of unique questions.
+
+**Frequency Counting:** Average O(N)
+
+**Sorting:** O(U log U)
+
+**Overall Average Time Complexity:** O(N + U log U)
+
+## 🛠️ Technologies Used
+
+- **HTML:** Structure of the user interface.
+- **CSS:** Styling and responsive layout.
+- **JavaScript:** Frontend interactions and question analysis in the web interface.
+- **C++:** Data structures and algorithm implementation for repeated question analysis.
+
+## 🚀 Getting Started
+
+### Prerequisites
+
+- Visual Studio Code or any code editor.
+- A modern web browser.
+- C++ compiler (such as GCC/G++), if running the C++ module.
+
+### Running the Frontend
+
+1. Clone the repository:
+
+   ```bash
+   git clone <repository-url>
+   ```
+
+2. Open the project folder in VS Code.
+
+3. Locate `smart_pyq_system.html`.
+
+4. Open the file using Live Server or directly in your browser.
+
+### Running the C++ Module
+
+Compile the C++ program:
+
+```bash
+g++ smart_pyq_system.cpp -o smart_pyq_system
+```
+
+Run the executable:
+
+```bash
+./smart_pyq_system
+```
+
+On Windows:
+
+```bash
+smart_pyq_system.exe
+```
+
+## 📊 Expected Output
+
+The Repeated Question Analysis module generates a frequency-based list of questions.
+
+| Question | Frequency |
+|---|---:|
+| Explain Binary Search Tree. | 4 |
+| Define Stack and its operations. | 3 |
+| Explain Breadth First Search. | 2 |
+
+*Illustrative sample output.*
+
+## 🌟 Benefits
+
+- Saves time during examination preparation.
+- Highlights frequently repeated questions.
+- Helps students identify important topics.
+- Provides a structured approach to PYQ analysis.
+- Encourages data-driven study planning.
+
+## 🔮 Future Improvements
+
+- PDF question paper extraction.
+- OCR-based text recognition.
+- Similarity-based question matching.
+- Topic-wise question classification.
+- Graphical representation of question frequency.
+- Integration with a centralized question paper database.
+
+## 👥 Team Project
+
+**Project Name:** Smart PYQ System  
+**Project Category:** Academic Assistance / Educational Technology
+
+**My Module:** Repeated Question Analysis & Study Guide (Member 3)
+
+---
+
+### 💡 Our Vision
+
+To make examination preparation smarter by transforming previous year question papers into meaningful insights that help students study strategically rather than randomly.
+
